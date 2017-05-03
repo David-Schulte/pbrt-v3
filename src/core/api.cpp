@@ -59,6 +59,7 @@
 #include "integrators/sppm.h"
 #include "integrators/volpath.h"
 #include "integrators/whitted.h"
+#include "integrators/AdaptiveWhittedIntegrator.h"
 #include "lights/diffuse.h"
 #include "lights/distant.h"
 #include "lights/goniometric.h"
@@ -1435,23 +1436,19 @@ Integrator *RenderOptions::MakeIntegrator() const {
         return nullptr;
     }
 
+    LOG(INFO) << "Creating Integrator of type: " + IntegratorName;
+
     Integrator *integrator = nullptr;
-    if (IntegratorName == "whitted")
-        integrator = CreateWhittedIntegrator(IntegratorParams, sampler, camera);
-    else if (IntegratorName == "directlighting")
-        integrator =
-            CreateDirectLightingIntegrator(IntegratorParams, sampler, camera);
-    else if (IntegratorName == "path")
-        integrator = CreatePathIntegrator(IntegratorParams, sampler, camera);
-    else if (IntegratorName == "volpath")
-        integrator = CreateVolPathIntegrator(IntegratorParams, sampler, camera);
-    else if (IntegratorName == "bdpt") {
-        integrator = CreateBDPTIntegrator(IntegratorParams, sampler, camera);
-    } else if (IntegratorName == "mlt") {
-        integrator = CreateMLTIntegrator(IntegratorParams, camera);
-    } else if (IntegratorName == "sppm") {
-        integrator = CreateSPPMIntegrator(IntegratorParams, camera);
-    } else {
+    if (IntegratorName == "whitted")                integrator = CreateWhittedIntegrator(IntegratorParams, sampler, camera);
+    else if (IntegratorName == "directlighting")    integrator = CreateDirectLightingIntegrator(IntegratorParams, sampler, camera);
+    else if (IntegratorName == "path")              integrator = CreatePathIntegrator(IntegratorParams, sampler, camera);
+    else if (IntegratorName == "volpath")           integrator = CreateVolPathIntegrator(IntegratorParams, sampler, camera);
+    else if (IntegratorName == "bdpt")              integrator = CreateBDPTIntegrator(IntegratorParams, sampler, camera);
+    else if (IntegratorName == "adaptivewhitted")   integrator = CreateAdaptiveWhittedIntegrator(IntegratorParams, sampler, camera);
+    else if (IntegratorName == "mlt")               integrator = CreateMLTIntegrator(IntegratorParams, camera);
+    else if (IntegratorName == "sppm")              integrator = CreateSPPMIntegrator(IntegratorParams, camera);
+    else 
+    {
         Error("Integrator \"%s\" unknown.", IntegratorName.c_str());
         return nullptr;
     }

@@ -259,4 +259,6 @@ Spectrum AdaptiveSamplerIntegrator::SpecularTransmit(
     return L;
 }
 
+
+
 }  // namespace pbrt
