@@ -24,8 +24,8 @@ namespace pbrt
         Preprocess(scene, *sampler);
         sampleBounds = camera->film->GetSampleBounds();
         sampleExtent = sampleBounds.Diagonal();
-        nTiles = Point2i(std::ceil(sampleExtent.x / tileSize),
-                         std::ceil(sampleExtent.y / tileSize));
+        nTiles = Point2i((sampleExtent.x + tileSize - 1) / tileSize,
+                         (sampleExtent.y + tileSize - 1) / tileSize);
         
         ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
 
