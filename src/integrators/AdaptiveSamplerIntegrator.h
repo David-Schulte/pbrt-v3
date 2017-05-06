@@ -24,6 +24,10 @@ public:
 
     void Render(const Scene &scene);
 
+    virtual void AdaptiveIteration(Point2i currentTile) const = 0;
+
+    virtual std::vector<double> CreateSampleMap() const = 0;
+
     virtual Spectrum Li(const RayDifferential &ray, const Scene &scene,
                         Sampler &sampler, MemoryArena &arena,
                         int depth = 0) const = 0;
@@ -43,8 +47,7 @@ protected:
 
     void CheckRadiance(Spectrum &radiance, const Point2i pixel, const std::unique_ptr<Sampler> &sampler);
     Bounds2i BoundsForTile(const Point2i tile);
-    void ProcessTile(const Scene &scene, const Point2i tile);
-    void RenderTile(const Point2i tile);
+    void RenderTile(const Scene &scene, const Point2i tile);
 
 private:
     std::shared_ptr<Sampler> sampler;

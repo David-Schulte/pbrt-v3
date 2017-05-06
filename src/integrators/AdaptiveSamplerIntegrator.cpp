@@ -27,29 +27,16 @@ namespace pbrt
         nTiles = Point2i((sampleExtent.x + tileSize - 1) / tileSize,
                          (sampleExtent.y + tileSize - 1) / tileSize);
         
+
+        //TODO::
+        //Invoke CreateSampleMap
+        //Adjust the render / processing methods to take in the sample map and render pixels as specified
+
         ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
-
-        /*
-        Input: InitialSamples           //Per pixel
-        Input: AdaptiveSampleBudget     //Per pixel
-
-        Method: Convert AdaptiveSampleBudget to total samples   //Individual pixels
-
-        Method: InitializeBasis
-            Method: UniformSampling     //Only sample pixels uniformly
-            Method: Filter
-            Method: EstimateError       //Save error as grayscale image -> stores adaptive samples needed
-
-        while (AdaptiveSampleBudget > 0):
-            Method: AdaptiveImprove
-                Method: AdaptiveSampling    //Sample pixels corresponding to the error values until AdaptiveSampleBudget is exhausted
-                Method: Filter
-                Method: EstimateError
-        */
 
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
         {
-            ProcessTile(scene, tile);
+            AdaptiveIteration(tile);
             reporter.Update();
         }, nTiles);
 
@@ -73,7 +60,7 @@ namespace pbrt
         return tileBounds;
     }
 
-    void AdaptiveSamplerIntegrator::ProcessTile(const Scene &scene, const Point2i tile)
+    void AdaptiveSamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile)
     {
         MemoryArena arena; // Allocate _MemoryArena_ for tile
         Bounds2i tileBounds = BoundsForTile(tile);
