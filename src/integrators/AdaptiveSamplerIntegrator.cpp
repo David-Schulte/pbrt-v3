@@ -14,41 +14,9 @@
 
 namespace pbrt 
 {
-
     STAT_COUNTER("Integrator/Camera rays traced", nCameraRays);
 
-    // SamplerIntegrator Method Definitions
-    void AdaptiveSamplerIntegrator::Render(const Scene &scene) 
-    {
-        // Initialize values
-        Preprocess(scene, *sampler);
-        sampleBounds = camera->film->GetSampleBounds();
-        sampleExtent = sampleBounds.Diagonal();
-        nTiles = Point2i((sampleExtent.x + tileSize - 1) / tileSize,
-                         (sampleExtent.y + tileSize - 1) / tileSize);
-        
-
-        //TODO::
-        //Invoke CreateSampleMap
-        //Adjust the render / processing methods to take in the sample map and render pixels as specified
-
-        ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
-
-        ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
-        {
-            AdaptiveIteration(tile);
-            reporter.Update();
-        }, nTiles);
-
-        reporter.Done();
-
-        LOG(INFO) << "Rendering finished";
-
-        // Save final image after rendering
-        camera->film->WriteImage();
-    }
-
-    Bounds2i AdaptiveSamplerIntegrator::BoundsForTile(const Point2i tile)
+    Bounds2i AdaptiveSamplerIntegrator::BoundsForTile(const Point2i tile) const
     {
         // Compute sample bounds for tile
         int x0 = sampleBounds.pMin.x + tile.x * tileSize;
@@ -60,7 +28,7 @@ namespace pbrt
         return tileBounds;
     }
 
-    void AdaptiveSamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile)
+    void AdaptiveSamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile, Film *film) const
     {
         MemoryArena arena; // Allocate _MemoryArena_ for tile
         Bounds2i tileBounds = BoundsForTile(tile);
@@ -70,7 +38,7 @@ namespace pbrt
         LOG(INFO) << "Starting image tile " << tileBounds;
 
         // Get _FilmTile_ for tile
-        std::unique_ptr<FilmTile> filmTile = camera->film->GetFilmTile(tileBounds);
+        std::unique_ptr<FilmTile> filmTile = film->GetFilmTile(tileBounds);
 
         // Loop over pixels in tile to render them
         for (Point2i pixel : tileBounds)
@@ -118,15 +86,10 @@ namespace pbrt
         LOG(INFO) << "Finished image tile " << tileBounds;
 
         // Merge image tile into _Film_
-        camera->film->MergeFilmTile(std::move(filmTile));
+        film->MergeFilmTile(std::move(filmTile));
     }
 
-    void AdaptiveSamplerIntegrator::RenderTile(const Point2i tile)
-    {
-        
-    }
-
-    void AdaptiveSamplerIntegrator::CheckRadiance(Spectrum &radiance, const Point2i pixel, const std::unique_ptr<Sampler> &sampler)
+    void AdaptiveSamplerIntegrator::CheckRadiance(Spectrum &radiance, const Point2i pixel, const std::unique_ptr<Sampler> &sampler) const
     {
         // Issue warning if unexpected radiance value returned
         if (radiance.HasNaNs())

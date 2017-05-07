@@ -14,19 +14,14 @@ namespace pbrt
 class AdaptiveSamplerIntegrator : public Integrator
 {
 public:
-    // SamplerIntegrator Public Methods
-    AdaptiveSamplerIntegrator(std::shared_ptr<const Camera> camera,
-                              std::shared_ptr<Sampler> sampler,
-                              const Bounds2i &pixelBounds)
+    AdaptiveSamplerIntegrator(std::shared_ptr<const Camera> camera, std::shared_ptr<Sampler> sampler, const Bounds2i &pixelBounds)
                               : camera(camera), sampler(sampler), pixelBounds(pixelBounds) {}
 
     virtual void Preprocess(const Scene &scene, Sampler &sampler) {}
 
-    void Render(const Scene &scene);
+    virtual void Render(const Scene &scene) = 0;
 
-    virtual void AdaptiveIteration(Point2i currentTile) const = 0;
-
-    virtual std::vector<double> CreateSampleMap() const = 0;
+    virtual void UpdateSampler() = 0;
 
     virtual Spectrum Li(const RayDifferential &ray, const Scene &scene,
                         Sampler &sampler, MemoryArena &arena,
@@ -44,18 +39,19 @@ public:
 
 protected:
     std::shared_ptr<const Camera> camera;
-
-    void CheckRadiance(Spectrum &radiance, const Point2i pixel, const std::unique_ptr<Sampler> &sampler);
-    Bounds2i BoundsForTile(const Point2i tile);
-    void RenderTile(const Scene &scene, const Point2i tile);
-
-private:
     std::shared_ptr<Sampler> sampler;
     const Bounds2i pixelBounds;
     Bounds2i sampleBounds;
     Vector2i sampleExtent;
     const int tileSize = 16;
     Point2i nTiles;
+
+    void CheckRadiance(Spectrum &radiance, const Point2i pixel, const std::unique_ptr<Sampler> &sampler) const;
+    Bounds2i BoundsForTile(const Point2i tile) const;
+    void RenderTile(const Scene &scene, const Point2i tile, Film *film) const;
+
+private:
+    
 };
 
 }  // namespace pbrt

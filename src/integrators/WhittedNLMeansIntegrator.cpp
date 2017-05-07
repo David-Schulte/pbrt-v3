@@ -1,14 +1,14 @@
-// integrators/AdaptiveWhittedIntegrator.h*
-#include "integrators/AdaptiveWhittedIntegrator.h"
+#include "integrators/WhittedNLMeansIntegrator.h"
 #include "interaction.h"
 #include "camera.h"
 #include "film.h"
 #include "paramset.h"
 
-namespace pbrt {
+namespace pbrt 
+{
 
     // WhittedIntegrator Method Definitions
-    Spectrum AdaptiveWhittedIntegrator::Li(const RayDifferential &ray, const Scene &scene,
+    Spectrum WhittedNLMeansIntegrator::Li(const RayDifferential &ray, const Scene &scene,
         Sampler &sampler, MemoryArena &arena,
         int depth) const {
         Spectrum L(0.);
@@ -53,7 +53,7 @@ namespace pbrt {
         return L;
     }
 
-    AdaptiveWhittedIntegrator *CreateAdaptiveWhittedIntegrator(const ParamSet &params, std::shared_ptr<Sampler> sampler,
+    WhittedNLMeansIntegrator *CreateWhittedNLMeansIntegrator(const ParamSet &params, std::shared_ptr<Sampler> sampler,
                                                                std::shared_ptr<const Camera> camera) 
     {
         int maxDepth = params.FindOneInt("maxdepth", 5);
@@ -73,7 +73,7 @@ namespace pbrt {
             }
         }
 
-        return new AdaptiveWhittedIntegrator(maxDepth, camera, sampler, pixelBounds);
+        return new WhittedNLMeansIntegrator(maxDepth, camera, sampler, pixelBounds);
     }
 
 }  // namespace pbrt
