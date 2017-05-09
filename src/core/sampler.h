@@ -123,6 +123,33 @@ class GlobalSampler : public Sampler {
     int arrayEndDim;
 };
 
+struct AdditionalSample
+{
+	Point2i currentPixel;
+	int64_t sampleCount;
+};
+
+struct SamplingMap
+{
+	//Can be a vector or a Matrix of your preffered library
+	std::vector<AdditionalSample> samplieMap;
+};
+
+class AdaptiveSampler : public Sampler
+{
+public:
+	// AdaptiveSampler Public Methods 
+	virtual Float Get1D();
+	virtual Point2f Get2D();
+	virtual bool StartNextSample();
+
+	virtual void updateSampleMap(SamplingMap samplingMap);
+
+private:
+	RNG rng;
+	std::vector<AdditionalSample> sampleMap;
+};
+
 }  // namespace pbrt
 
 #endif  // PBRT_CORE_SAMPLER_H

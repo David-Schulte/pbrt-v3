@@ -50,7 +50,7 @@ private:
     std::shared_ptr<Sampler> sampler;
     const Bounds2i pixelBounds;
     Bounds2i sampleBounds;
-    Vector2i sampleExtent;
+    Vector2i sampleExtent; //What is the purpose of this parameter.
     const int tileSize = 16;
     Point2i nTiles;
 };

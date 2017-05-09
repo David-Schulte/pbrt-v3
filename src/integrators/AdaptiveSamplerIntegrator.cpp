@@ -32,19 +32,21 @@ namespace pbrt
         /*
         Input: InitialSamples           //Per pixel
         Input: AdaptiveSampleBudget     //Per pixel
+		Input: AdaptiveLevels = -1		//Optional parameter
 
-        Method: Convert AdaptiveSampleBudget to total samples   //Individual pixels
+        Method: Convert AdaptiveSampleBudget to total samples   //Individual pixels (might be too pecific for our algorithm)
 
-        Method: InitializeBasis
+        Method: InitializeBasis			//Initial render run?
             Method: UniformSampling     //Only sample pixels uniformly
             Method: Filter
             Method: EstimateError       //Save error as grayscale image -> stores adaptive samples needed
 
-        while (AdaptiveSampleBudget > 0):
-            Method: AdaptiveImprove
-                Method: AdaptiveSampling    //Sample pixels corresponding to the error values until AdaptiveSampleBudget is exhausted
-                Method: Filter
-                Method: EstimateError
+		while(AdaptiveLevels > 0 || checkIfFinished) //Until all pixels are covered by our algorithm
+			while (AdaptiveSampleBudget > 0):
+				Method: AdaptiveImprove
+					Method: AdaptiveSampling    //Sample pixels corresponding to the error values until AdaptiveSampleBudget is exhausted
+					Method: Filter
+					Method: EstimateError
         */
 
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
