@@ -22,9 +22,9 @@ namespace pbrt
         nTiles = Point2i((sampleExtent.x + tileSize - 1) / tileSize,
             (sampleExtent.y + tileSize - 1) / tileSize);
 
-        //Will need two films eventually... either cloning the one from camera, or creating a custom camera that holds 2?
-        //Just creating new films here ain't gonna work, because the settings are wrong then...
-        Film *film = camera->film; 
+        //Initialize dual buffer by copying the settings from the camera film
+        Film *buffer1 = new Film(camera->film); 
+        Film *buffer2 = new Film(camera->film);
 
         ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
 
@@ -36,7 +36,10 @@ namespace pbrt
 
             ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
             {
-                RenderTile(scene, tile, film); //Has to be done twice... (2 films)
+                //Render tiles for each buffer
+                RenderTile(scene, tile, buffer1);
+                RenderTile(scene, tile, buffer2);
+
                 reporter.Update();
             }, nTiles);
         }
@@ -45,7 +48,13 @@ namespace pbrt
         LOG(INFO) << "Rendering finished";
 
         //Merge the two films into one and write out the result
-        film->WriteImage();
+        //FilmTile does not carry over the values of the film, as it seems! So merging into the camera via filmTiles like this does nothing!
+        //std::unique_ptr<FilmTile> tileOfBuffer1 = buffer1->GetFilmTile(buffer1->croppedPixelBounds);
+        //std::unique_ptr<FilmTile> tileOfBuffer2 = buffer2->GetFilmTile(buffer2->croppedPixelBounds);
+        //camera->film->MergeFilmTile(std::move(tileOfBuffer1));
+        //camera->film->MergeFilmTile(std::move(tileOfBuffer2));
+
+        buffer1->WriteImage();
     }
 
     void AdaptiveNLMeansIntegrator::UniformSampling()

@@ -62,6 +62,8 @@ class Film {
          std::unique_ptr<Filter> filter, Float diagonal,
          const std::string &filename, Float scale,
          Float maxSampleLuminance = Infinity);
+    Film(const Film *clone);
+
     Bounds2i GetSampleBounds() const;
     Bounds2f GetPhysicalExtent() const;
     std::unique_ptr<FilmTile> GetFilmTile(const Bounds2i &sampleBounds);
@@ -77,6 +79,8 @@ class Film {
     std::unique_ptr<Filter> filter;
     const std::string filename;
     Bounds2i croppedPixelBounds;
+    const Float scale;
+    const Float maxSampleLuminance;
 
   private:
     // Film Private Data
@@ -91,8 +95,6 @@ class Film {
     static PBRT_CONSTEXPR int filterTableWidth = 16;
     Float filterTable[filterTableWidth * filterTableWidth];
     std::mutex mutex;
-    const Float scale;
-    const Float maxSampleLuminance;
 
     // Film Private Methods
     Pixel &GetPixel(const Point2i &p) {
