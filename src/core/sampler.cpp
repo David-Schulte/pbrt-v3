@@ -64,6 +64,18 @@ bool Sampler::StartNextSample() {
     return ++currentPixelSampleIndex < samplesPerPixel;
 }
 
+bool Sampler::StartNextIteration(Film * film)
+{
+    // If there is another iteration: 
+    // UpdateSampleMap(film);
+
+    return false;
+}
+
+void Sampler::UpdateSampleMap(Film * film)
+{
+}
+
 bool Sampler::SetSampleNumber(int64_t sampleNum) {
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;

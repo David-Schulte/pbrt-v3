@@ -44,14 +44,17 @@
 #include "rng.h"
 #include <inttypes.h>
 
-namespace pbrt {
+namespace pbrt 
+{
 
 // Sampler Declarations
-class Sampler {
+class Sampler 
+{
   public:
     // Sampler Interface
     virtual ~Sampler();
     Sampler(int64_t samplesPerPixel);
+
     virtual void StartPixel(const Point2i &p);
     virtual Float Get1D() = 0;
     virtual Point2f Get2D() = 0;
@@ -61,14 +64,18 @@ class Sampler {
     virtual int RoundCount(int n) const { return n; }
     const Float *Get1DArray(int n);
     const Point2f *Get2DArray(int n);
-    virtual bool StartNextSample();
     virtual std::unique_ptr<Sampler> Clone(int seed) = 0;
     virtual bool SetSampleNumber(int64_t sampleNum);
-    std::string StateString() const {
-      return StringPrintf("(%d,%d), sample %" PRId64, currentPixel.x,
-                          currentPixel.y, currentPixelSampleIndex);
-    }
     int64_t CurrentSampleNumber() const { return currentPixelSampleIndex; }
+
+    std::string StateString() const 
+    {
+      return StringPrintf("(%d,%d), sample %" PRId64, currentPixel.x, currentPixel.y, currentPixelSampleIndex);
+    }
+
+    virtual bool StartNextSample();
+    virtual bool StartNextIteration(Film *film);
+    virtual void UpdateSampleMap(Film *film);
 
     // Sampler Public Data
     const int64_t samplesPerPixel;

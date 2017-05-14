@@ -47,10 +47,12 @@
 #include "sampler.h"
 #include "material.h"
 
-namespace pbrt {
+namespace pbrt 
+{
 
 // Integrator Declarations
-class Integrator {
+class Integrator 
+{
   public:
     // Integrator Interface
     virtual ~Integrator();
@@ -70,19 +72,21 @@ Spectrum EstimateDirect(const Interaction &it, const Point2f &uShading,
                         const Scene &scene, Sampler &sampler,
                         MemoryArena &arena, bool handleMedia = false,
                         bool specular = false);
-std::unique_ptr<Distribution1D> ComputeLightPowerDistribution(
-    const Scene &scene);
+std::unique_ptr<Distribution1D> ComputeLightPowerDistribution(const Scene &scene);
 
 // SamplerIntegrator Declarations
-class SamplerIntegrator : public Integrator {
+class SamplerIntegrator : public Integrator 
+{
   public:
     // SamplerIntegrator Public Methods
-    SamplerIntegrator(std::shared_ptr<const Camera> camera,
-                      std::shared_ptr<Sampler> sampler,
+    SamplerIntegrator(std::shared_ptr<const Camera> camera, std::shared_ptr<Sampler> sampler,
                       const Bounds2i &pixelBounds)
         : camera(camera), sampler(sampler), pixelBounds(pixelBounds) {}
+
     virtual void Preprocess(const Scene &scene, Sampler &sampler) {}
+
     void Render(const Scene &scene);
+
     virtual Spectrum Li(const RayDifferential &ray, const Scene &scene,
                         Sampler &sampler, MemoryArena &arena,
                         int depth = 0) const = 0;
@@ -103,6 +107,14 @@ class SamplerIntegrator : public Integrator {
     // SamplerIntegrator Private Data
     std::shared_ptr<Sampler> sampler;
     const Bounds2i pixelBounds;
+    Bounds2i sampleBounds;
+    Vector2i sampleExtent;
+    const int tileSize = 16;
+    Point2i nTiles;
+
+    void CheckRadiance(Spectrum &radiance, const Point2i pixel, const std::unique_ptr<Sampler> &sampler) const;
+    Bounds2i BoundsForTile(const Point2i tile) const;
+    void RenderTile(const Scene &scene, const Point2i tile) const;
 };
 
 }  // namespace pbrt
