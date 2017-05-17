@@ -61,7 +61,7 @@ namespace pbrt {
 	virtual int RoundCount(int n) const { return n; }
 	const Float *Get1DArray(int n);
 	const Point2f *Get2DArray(int n);
-	bool StartNextSample();
+	virtual bool StartNextSample();
 	bool StartNextIteration() {return false;}
     virtual std::unique_ptr<Sampler> Clone(int seed) = 0;
     virtual bool SetSampleNumber(int64_t sampleNum);
