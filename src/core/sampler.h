@@ -74,7 +74,7 @@ class Sampler
     }
 
     virtual bool StartNextSample();
-    virtual bool StartNextIteration(Film *film);
+    virtual bool StartNextIteration();
     virtual void UpdateSampleMap(Film *film);
 
     // Sampler Public Data
@@ -91,6 +91,10 @@ class Sampler
   private:
     // Sampler Private Data
     size_t array1DOffset, array2DOffset;
+    
+    std::vector<std::vector<int>> sampleMap;
+    int currentAdaptiveIteration = 1;
+    int plannedAdaptiveIterations = 1;
 };
 
 class PixelSampler : public Sampler {

@@ -244,6 +244,8 @@ void SamplerIntegrator::Render(const Scene &scene)
 
     do
     {
+        sampler->UpdateSampleMap(camera->film);
+
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
         {
             //Render tiles for each buffer
@@ -252,7 +254,7 @@ void SamplerIntegrator::Render(const Scene &scene)
             reporter.Update();
         }, nTiles);
     } 
-    while (sampler->StartNextIteration(camera->film));
+    while (sampler->StartNextIteration());
 
     reporter.Done();
     LOG(INFO) << "Rendering finished";
