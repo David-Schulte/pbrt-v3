@@ -47,21 +47,22 @@
 namespace pbrt {
 
 // Sampler Declarations
-class Sampler {
-  public:
-    // Sampler Interface
-    virtual ~Sampler();
-    Sampler(int64_t samplesPerPixel);
-    virtual void StartPixel(const Point2i &p);
-    virtual Float Get1D() = 0;
-    virtual Point2f Get2D() = 0;
-    CameraSample GetCameraSample(const Point2i &pRaster);
-    void Request1DArray(int n);
-    void Request2DArray(int n);
-    virtual int RoundCount(int n) const { return n; }
-    const Float *Get1DArray(int n);
-    const Point2f *Get2DArray(int n);
-    virtual bool StartNextSample();
+	class Sampler {
+	public:
+	// Sampler Interface
+	virtual ~Sampler();
+	Sampler(int64_t samplesPerPixel);
+	virtual void StartPixel(const Point2i &p);
+	virtual Float Get1D() = 0;
+	virtual Point2f Get2D() = 0;
+	CameraSample GetCameraSample(const Point2i &pRaster);
+	void Request1DArray(int n);
+	void Request2DArray(int n);
+	virtual int RoundCount(int n) const { return n; }
+	const Float *Get1DArray(int n);
+	const Point2f *Get2DArray(int n);
+	bool StartNextSample();
+	bool StartNextIteration() {return false;}
     virtual std::unique_ptr<Sampler> Clone(int seed) = 0;
     virtual bool SetSampleNumber(int64_t sampleNum);
     std::string StateString() const {
