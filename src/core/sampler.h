@@ -62,7 +62,7 @@ namespace pbrt {
 	const Float *Get1DArray(int n);
 	const Point2f *Get2DArray(int n);
 	virtual bool StartNextSample();
-	bool StartNextIteration() {return false;}
+	virtual bool StartNextIteration() = 0;
     virtual std::unique_ptr<Sampler> Clone(int seed) = 0;
     virtual bool SetSampleNumber(int64_t sampleNum);
     std::string StateString() const {

@@ -51,6 +51,7 @@ class ZeroTwoSequenceSampler : public PixelSampler {
     void StartPixel(const Point2i &);
     std::unique_ptr<Sampler> Clone(int seed);
     int RoundCount(int count) const { return RoundUpPow2(count); }
+    bool StartNextIteration() { return false;};	
 };
 
 ZeroTwoSequenceSampler *CreateZeroTwoSequenceSampler(const ParamSet &params);

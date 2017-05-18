@@ -62,7 +62,7 @@ class SobolSampler : public GlobalSampler {
     }
     int64_t GetIndexForSample(int64_t sampleNum) const;
     Float SampleDimension(int64_t index, int dimension) const;
-
+	bool StartNextIteration() { return false; };
   private:
     // SobolSampler Private Data
     const Bounds2i sampleBounds;

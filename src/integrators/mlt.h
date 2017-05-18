@@ -68,7 +68,7 @@ class MLTSampler : public Sampler {
     void Reject();
     void StartStream(int index);
     int GetNextIndex() { return streamIndex + streamCount * sampleIndex++; }
-
+	bool StartNextIteration() { return false; };
   protected:
     // MLTSampler Private Declarations
     struct PrimarySample {

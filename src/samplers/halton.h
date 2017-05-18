@@ -53,7 +53,7 @@ class HaltonSampler : public GlobalSampler {
     int64_t GetIndexForSample(int64_t sampleNum) const;
     Float SampleDimension(int64_t index, int dimension) const;
     std::unique_ptr<Sampler> Clone(int seed);
-
+    bool StartNextIteration() { return false;};	
   private:
     // HaltonSampler Private Data
     static std::vector<uint16_t> radicalInversePermutations;

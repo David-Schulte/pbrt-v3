@@ -76,7 +76,7 @@ class MaxMinDistSampler : public PixelSampler {
               Cindex < (sizeof(CMaxMinDist) / sizeof(CMaxMinDist[0])));
         CPixel = CMaxMinDist[Cindex];
     }
-
+  bool StartNextIteration() { return false;};	
   private:
     // MaxMinDistSampler Private Data
     const uint32_t *CPixel;

@@ -51,7 +51,7 @@ class RandomSampler : public Sampler {
     Float Get1D();
     Point2f Get2D();
     std::unique_ptr<Sampler> Clone(int seed);
-
+    bool StartNextIteration() { return false;};	
   private:
     RNG rng;
 };

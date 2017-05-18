@@ -56,7 +56,7 @@ class StratifiedSampler : public PixelSampler {
           jitterSamples(jitterSamples) {}
     void StartPixel(const Point2i &);
     std::unique_ptr<Sampler> Clone(int seed);
-
+    bool StartNextIteration() { return false;};	
   private:
     // StratifiedSampler Private Data
     const int xPixelSamples, yPixelSamples;
