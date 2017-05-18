@@ -242,9 +242,10 @@ void SamplerIntegrator::Render(const Scene &scene)
 
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
 
+    sampler->InitializeSamplingPlan(sampler->samplesPerPixel, camera->film);
     do
     {
-        sampler->UpdateSampleMap(camera->film);
+        sampler->UpdateSamplingPlan(camera->film);
 
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
         {

@@ -36,6 +36,7 @@
 #include "sampling.h"
 #include "camera.h"
 #include "stats.h"
+#include "NonAdaptiveSamplingPlanner.h"
 
 namespace pbrt {
 
@@ -65,38 +66,24 @@ bool Sampler::StartNextSample()
 {
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
-    return ++currentPixelSampleIndex < sampleMap[currentPixel.x][currentPixel.y];
+    return ++currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel);
+}
+
+void Sampler::InitializeSamplingPlan(int samplesPerPixel, Film *film)
+{
+    if (samplingPlanner == nullptr) samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+
+    samplingPlanner->InitializeSamplingPlan(samplesPerPixel, film);
 }
 
 bool Sampler::StartNextIteration()
 {
-    currentAdaptiveIteration++;
-
-    if (currentAdaptiveIteration > plannedAdaptiveIterations) return false;
-    else                                                      return true;
+    return samplingPlanner->StartNextIteration();
 }
 
-void Sampler::UpdateSampleMap(Film * film)
+void Sampler::UpdateSamplingPlan(Film * film)
 {
-    //TODO:: Create external class which can be added to the sampler in a modular way to handle this?
-    //       Advantage: Every single sampler would work with that -> No need to create new ones
-    //       Advantage: Scales for any number of adaptive methods as long as they fit the general framework
-
-    if (currentAdaptiveIteration == 1) //Initialize some values only once
-    {
-        Bounds2i sampleBounds = film->GetSampleBounds();
-        Vector2i sampleExtent = sampleBounds.Diagonal();
-        sampleMap = std::vector<std::vector<int>>(sampleExtent.x, std::vector<int>(sampleExtent.y));
-    }
-
-    //Calculate sampleMap -> In case of a non-adaptive sampler every pixel gets assigned the same amount of samples
-    for (int row = 0; row < sampleMap.size(); row++)
-    {
-        for (int column = 0; column < sampleMap[0].size(); column++)
-        {
-            sampleMap[row][column] = samplesPerPixel;
-        }
-    }
+    samplingPlanner->UpdateSamplingPlan(film);
 }
 
 bool Sampler::SetSampleNumber(int64_t sampleNum) {

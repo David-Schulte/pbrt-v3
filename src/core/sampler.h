@@ -39,6 +39,7 @@
 #define PBRT_CORE_SAMPLER_H
 
 // core/sampler.h*
+#include "SamplingPlanner.h"
 #include "pbrt.h"
 #include "geometry.h"
 #include "rng.h"
@@ -74,8 +75,10 @@ class Sampler
     }
 
     virtual bool StartNextSample();
-    virtual bool StartNextIteration();
-    virtual void UpdateSampleMap(Film *film);
+
+    void InitializeSamplingPlan(int samplesPerPixel, Film *film);
+    bool StartNextIteration();
+    void UpdateSamplingPlan(Film *film);
 
     // Sampler Public Data
     const int64_t samplesPerPixel;
@@ -88,13 +91,11 @@ class Sampler
     std::vector<std::vector<Float>> sampleArray1D;
     std::vector<std::vector<Point2f>> sampleArray2D;
 
+    std::shared_ptr<SamplingPlanner> samplingPlanner;
+
   private:
     // Sampler Private Data
     size_t array1DOffset, array2DOffset;
-    
-    std::vector<std::vector<int>> sampleMap;
-    int currentAdaptiveIteration = 1;
-    int plannedAdaptiveIterations = 1;
 };
 
 class PixelSampler : public Sampler {
