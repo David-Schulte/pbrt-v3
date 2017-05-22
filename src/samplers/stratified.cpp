@@ -56,14 +56,14 @@ void StratifiedSampler::StartPixel(const Point2i &p) {
 
     // Generate arrays of stratified samples for the pixel
     for (size_t i = 0; i < samples1DArraySizes.size(); ++i)
-        for (int64_t j = 0; j < samplesPerPixel; ++j) {
+        for (int64_t j = 0; j < maxSamplesPerPixel; ++j) {
             int count = samples1DArraySizes[i];
             StratifiedSample1D(&sampleArray1D[i][j * count], count, rng,
                                jitterSamples);
             Shuffle(&sampleArray1D[i][j * count], count, 1, rng);
         }
     for (size_t i = 0; i < samples2DArraySizes.size(); ++i)
-        for (int64_t j = 0; j < samplesPerPixel; ++j) {
+        for (int64_t j = 0; j < maxSamplesPerPixel; ++j) {
             int count = samples2DArraySizes[i];
             LatinHypercube(&sampleArray2D[i][j * count].x, count, 2, rng);
         }

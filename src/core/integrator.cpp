@@ -242,7 +242,7 @@ void SamplerIntegrator::Render(const Scene &scene)
 
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
 
-    sampler->InitializeSamplingPlan(sampler->samplesPerPixel, camera->film);
+    sampler->InitializeSamplingPlan(camera->film);
     do
     {
         sampler->UpdateSamplingPlan(camera->film);
@@ -310,7 +310,7 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
             // Generate camera ray for current sample
             RayDifferential ray;
             Float rayWeight = camera->GenerateRayDifferential(cameraSample, &ray);
-            ray.ScaleDifferentials(1 / std::sqrt((Float)tileSampler->samplesPerPixel));
+            ray.ScaleDifferentials(1 / std::sqrt((Float)tileSampler->maxSamplesPerPixel));
             ++nCameraRays;
 
             // Evaluate radiance along camera ray

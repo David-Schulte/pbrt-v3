@@ -43,13 +43,13 @@ RandomSampler::RandomSampler(int ns, int seed) : Sampler(ns), rng(seed) {}
 
 Float RandomSampler::Get1D() {
     ProfilePhase _(Prof::GetSample);
-    CHECK_LT(currentPixelSampleIndex, samplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
     return rng.UniformFloat();
 }
 
 Point2f RandomSampler::Get2D() {
     ProfilePhase _(Prof::GetSample);
-    CHECK_LT(currentPixelSampleIndex, samplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
     return {rng.UniformFloat(), rng.UniformFloat()};
 }
 

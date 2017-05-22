@@ -79,7 +79,7 @@ int GenerateCameraSubpath(const Scene &scene, Sampler &sampler,
     cameraSample.pLens = sampler.Get2D();
     RayDifferential ray;
     Spectrum beta = camera.GenerateRayDifferential(cameraSample, &ray);
-    ray.ScaleDifferentials(1 / std::sqrt(sampler.samplesPerPixel));
+    ray.ScaleDifferentials(1 / std::sqrt(sampler.maxSamplesPerPixel));
 
     // Generate first vertex on camera subpath and start random walk
     Float pdfPos, pdfDir;
@@ -428,11 +428,11 @@ void BDPTIntegrator::Render(const Scene &scene) {
         }, Point2i(nXTiles, nYTiles));
         reporter.Done();
     }
-    film->WriteImage(1.0f / sampler->samplesPerPixel);
+    film->WriteImage(1.0f / sampler->maxSamplesPerPixel);
 
     // Write buffers for debug visualization
     if (visualizeStrategies || visualizeWeights) {
-        const Float invSampleCount = 1.0f / sampler->samplesPerPixel;
+        const Float invSampleCount = 1.0f / sampler->maxSamplesPerPixel;
         for (size_t i = 0; i < weightFilms.size(); ++i)
             if (weightFilms[i]) weightFilms[i]->WriteImage(invSampleCount);
     }

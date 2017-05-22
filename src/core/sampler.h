@@ -77,12 +77,12 @@ class Sampler
 
     virtual bool StartNextSample();
 
-    void InitializeSamplingPlan(int samplesPerPixel, Film *film);
+    void InitializeSamplingPlan(Film *film);
     bool StartNextIteration();
     void UpdateSamplingPlan(Film *film);
 
     // Sampler Public Data
-    const int64_t samplesPerPixel;
+    int64_t maxSamplesPerPixel;
     std::shared_ptr<SamplingPlanner> samplingPlanner;
 
   protected:
@@ -98,6 +98,7 @@ class Sampler
   private:
     // Sampler Private Data
     size_t array1DOffset, array2DOffset;
+    int64_t averagePerPixelSampleBudget;
 };
 
 class PixelSampler : public Sampler {

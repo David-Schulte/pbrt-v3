@@ -54,16 +54,16 @@ void ZeroTwoSequenceSampler::StartPixel(const Point2i &p) {
     ProfilePhase _(Prof::StartPixel);
     // Generate 1D and 2D pixel sample components using $(0,2)$-sequence
     for (size_t i = 0; i < samples1D.size(); ++i)
-        VanDerCorput(1, samplesPerPixel, &samples1D[i][0], rng);
+        VanDerCorput(1, samplingPlanner->maxPixelSamplesPerIteration, &samples1D[i][0], rng);
     for (size_t i = 0; i < samples2D.size(); ++i)
-        Sobol2D(1, samplesPerPixel, &samples2D[i][0], rng);
+        Sobol2D(1, samplingPlanner->maxPixelSamplesPerIteration, &samples2D[i][0], rng);
 
     // Generate 1D and 2D array samples using $(0,2)$-sequence
     for (size_t i = 0; i < samples1DArraySizes.size(); ++i)
-        VanDerCorput(samples1DArraySizes[i], samplesPerPixel,
+        VanDerCorput(samples1DArraySizes[i], maxSamplesPerPixel,
                      &sampleArray1D[i][0], rng);
     for (size_t i = 0; i < samples2DArraySizes.size(); ++i)
-        Sobol2D(samples2DArraySizes[i], samplesPerPixel, &sampleArray2D[i][0],
+        Sobol2D(samples2DArraySizes[i], maxSamplesPerPixel, &sampleArray2D[i][0],
                 rng);
     PixelSampler::StartPixel(p);
 }

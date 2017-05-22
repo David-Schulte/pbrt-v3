@@ -42,7 +42,7 @@ namespace pbrt {
 // Sampler Method Definitions
 Sampler::~Sampler() {}
 
-Sampler::Sampler(int64_t samplesPerPixel) : samplesPerPixel(samplesPerPixel) {}
+Sampler::Sampler(int64_t samplesPerPixel) : averagePerPixelSampleBudget(samplesPerPixel) {}
 
 CameraSample Sampler::GetCameraSample(const Point2i &pRaster) 
 {
@@ -68,11 +68,12 @@ bool Sampler::StartNextSample()
     return ++currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel);
 }
 
-void Sampler::InitializeSamplingPlan(int samplesPerPixel, Film *film)
+void Sampler::InitializeSamplingPlan(Film *film)
 {
     if (samplingPlanner == nullptr) LOG(FATAL) << "Sampler does not have a samplingPlanner";
 
-    samplingPlanner->InitializeSamplingPlan(samplesPerPixel, film);
+    samplingPlanner->InitializeSamplingPlan(averagePerPixelSampleBudget, film);
+    maxSamplesPerPixel = samplingPlanner->maxPixelSamplesPerIteration;
     AdaptToSamplingPlan();
 }
 
@@ -90,32 +91,32 @@ bool Sampler::SetSampleNumber(int64_t sampleNum) {
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
     currentPixelSampleIndex = sampleNum;
-    return currentPixelSampleIndex < samplesPerPixel;
+    return currentPixelSampleIndex < maxSamplesPerPixel;
 }
 
 void Sampler::Request1DArray(int n) {
     CHECK_EQ(RoundCount(n), n);
     samples1DArraySizes.push_back(n);
-    sampleArray1D.push_back(std::vector<Float>(n * samplesPerPixel));
+    sampleArray1D.push_back(std::vector<Float>(n * maxSamplesPerPixel));
 }
 
 void Sampler::Request2DArray(int n) {
     CHECK_EQ(RoundCount(n), n);
     samples2DArraySizes.push_back(n);
-    sampleArray2D.push_back(std::vector<Point2f>(n * samplesPerPixel));
+    sampleArray2D.push_back(std::vector<Point2f>(n * maxSamplesPerPixel));
 }
 
 const Float *Sampler::Get1DArray(int n) {
     if (array1DOffset == sampleArray1D.size()) return nullptr;
     CHECK_EQ(samples1DArraySizes[array1DOffset], n);
-    CHECK_LT(currentPixelSampleIndex, samplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
     return &sampleArray1D[array1DOffset++][currentPixelSampleIndex * n];
 }
 
 const Point2f *Sampler::Get2DArray(int n) {
     if (array2DOffset == sampleArray2D.size()) return nullptr;
     CHECK_EQ(samples2DArraySizes[array2DOffset], n);
-    CHECK_LT(currentPixelSampleIndex, samplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
     return &sampleArray2D[array2DOffset++][currentPixelSampleIndex * n];
 }
 
@@ -143,7 +144,7 @@ bool PixelSampler::SetSampleNumber(int64_t sampleNum) {
 
 Float PixelSampler::Get1D() {
     ProfilePhase _(Prof::GetSample);
-    CHECK_LT(currentPixelSampleIndex, samplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
     if (current1DDimension < samples1D.size())
         return samples1D[current1DDimension++][currentPixelSampleIndex];
     else
@@ -152,7 +153,7 @@ Float PixelSampler::Get1D() {
 
 Point2f PixelSampler::Get2D() {
     ProfilePhase _(Prof::GetSample);
-    CHECK_LT(currentPixelSampleIndex, samplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
     if (current2DDimension < samples2D.size())
         return samples2D[current2DDimension++][currentPixelSampleIndex];
     else
@@ -182,7 +183,7 @@ void GlobalSampler::StartPixel(const Point2i &p) {
 
     // Compute 1D array samples for _GlobalSampler_
     for (size_t i = 0; i < samples1DArraySizes.size(); ++i) {
-        int nSamples = samples1DArraySizes[i] * samplesPerPixel;
+        int nSamples = samples1DArraySizes[i] * maxSamplesPerPixel;
         for (int j = 0; j < nSamples; ++j) {
             int64_t index = GetIndexForSample(j);
             sampleArray1D[i][j] = SampleDimension(index, arrayStartDim + i);
@@ -192,7 +193,7 @@ void GlobalSampler::StartPixel(const Point2i &p) {
     // Compute 2D array samples for _GlobalSampler_
     int dim = arrayStartDim + samples1DArraySizes.size();
     for (size_t i = 0; i < samples2DArraySizes.size(); ++i) {
-        int nSamples = samples2DArraySizes[i] * samplesPerPixel;
+        int nSamples = samples2DArraySizes[i] * maxSamplesPerPixel;
         for (int j = 0; j < nSamples; ++j) {
             int64_t idx = GetIndexForSample(j);
             sampleArray2D[i][j].x = SampleDimension(idx, dim);
