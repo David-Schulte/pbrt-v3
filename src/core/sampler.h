@@ -40,6 +40,7 @@
 
 // core/sampler.h*
 #include "SamplingPlanner.h"
+#include "NonAdaptiveSamplingPlanner.h"
 #include "pbrt.h"
 #include "geometry.h"
 #include "rng.h"
@@ -82,6 +83,7 @@ class Sampler
 
     // Sampler Public Data
     const int64_t samplesPerPixel;
+    std::shared_ptr<SamplingPlanner> samplingPlanner;
 
   protected:
     // Sampler Protected Data
@@ -91,7 +93,7 @@ class Sampler
     std::vector<std::vector<Float>> sampleArray1D;
     std::vector<std::vector<Point2f>> sampleArray2D;
 
-    std::shared_ptr<SamplingPlanner> samplingPlanner;
+    virtual void AdaptToSamplingPlan() {}
 
   private:
     // Sampler Private Data
@@ -113,6 +115,9 @@ class PixelSampler : public Sampler {
     std::vector<std::vector<Point2f>> samples2D;
     int current1DDimension = 0, current2DDimension = 0;
     RNG rng;
+
+    int samplingDimensions;
+    void AdaptToSamplingPlan();
 };
 
 class GlobalSampler : public Sampler {

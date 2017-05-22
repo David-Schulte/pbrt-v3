@@ -82,7 +82,13 @@ StratifiedSampler *CreateStratifiedSampler(const ParamSet &params) {
     int ysamp = params.FindOneInt("ysamples", 4);
     int sd = params.FindOneInt("dimensions", 4);
     if (PbrtOptions.quickRender) xsamp = ysamp = 1;
-    return new StratifiedSampler(xsamp, ysamp, jitter, sd);
+
+    StratifiedSampler *sampler = new StratifiedSampler(xsamp, ysamp, jitter, sd);
+
+    std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+    if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+
+    return sampler;
 }
 
 }  // namespace pbrt

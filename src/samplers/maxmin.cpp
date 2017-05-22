@@ -74,7 +74,13 @@ MaxMinDistSampler *CreateMaxMinDistSampler(const ParamSet &params) {
     int nsamp = params.FindOneInt("pixelsamples", 16);
     int sd = params.FindOneInt("dimensions", 4);
     if (PbrtOptions.quickRender) nsamp = 1;
-    return new MaxMinDistSampler(nsamp, sd);
+
+    MaxMinDistSampler *sampler = new MaxMinDistSampler(nsamp, sd);
+
+    std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+    if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+
+    return sampler;
 }
 
 }  // namespace pbrt

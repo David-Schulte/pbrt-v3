@@ -36,7 +36,6 @@
 #include "sampling.h"
 #include "camera.h"
 #include "stats.h"
-#include "NonAdaptiveSamplingPlanner.h"
 
 namespace pbrt {
 
@@ -71,9 +70,10 @@ bool Sampler::StartNextSample()
 
 void Sampler::InitializeSamplingPlan(int samplesPerPixel, Film *film)
 {
-    if (samplingPlanner == nullptr) samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+    if (samplingPlanner == nullptr) LOG(FATAL) << "Sampler does not have a samplingPlanner";
 
     samplingPlanner->InitializeSamplingPlan(samplesPerPixel, film);
+    AdaptToSamplingPlan();
 }
 
 bool Sampler::StartNextIteration()
@@ -120,8 +120,12 @@ const Point2f *Sampler::Get2DArray(int n) {
 }
 
 PixelSampler::PixelSampler(int64_t samplesPerPixel, int nSampledDimensions)
-    : Sampler(samplesPerPixel) {
-    for (int i = 0; i < nSampledDimensions; ++i) {
+    : Sampler(samplesPerPixel) 
+{
+    samplingDimensions = nSampledDimensions;
+
+    for (int i = 0; i < samplingDimensions; ++i)
+    {
         samples1D.push_back(std::vector<Float>(samplesPerPixel));
         samples2D.push_back(std::vector<Point2f>(samplesPerPixel));
     }
@@ -153,6 +157,18 @@ Point2f PixelSampler::Get2D() {
         return samples2D[current2DDimension++][currentPixelSampleIndex];
     else
         return Point2f(rng.UniformFloat(), rng.UniformFloat());
+}
+
+void PixelSampler::AdaptToSamplingPlan()
+{
+    samples1D.clear();
+    samples2D.clear();
+
+    for (int i = 0; i < samplingDimensions; ++i) 
+    {
+        samples1D.push_back(std::vector<Float>(samplingPlanner->maxPixelSamplesPerIteration));
+        samples2D.push_back(std::vector<Point2f>(samplingPlanner->maxPixelSamplesPerIteration));
+    }
 }
 
 void GlobalSampler::StartPixel(const Point2i &p) {

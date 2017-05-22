@@ -66,7 +66,13 @@ SobolSampler *CreateSobolSampler(const ParamSet &params,
                                  const Bounds2i &sampleBounds) {
     int nsamp = params.FindOneInt("pixelsamples", 16);
     if (PbrtOptions.quickRender) nsamp = 1;
-    return new SobolSampler(nsamp, sampleBounds);
+
+    SobolSampler *sampler = new SobolSampler(nsamp, sampleBounds);
+
+    std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+    if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+
+    return sampler;
 }
 
 }  // namespace pbrt
