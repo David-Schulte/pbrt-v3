@@ -8,6 +8,7 @@
 
 #include "pbrt.h"
 #include "geometry.h"
+#include <inttypes.h>
 
 namespace pbrt
 {
@@ -18,22 +19,26 @@ namespace pbrt
         SamplingPlanner();
         ~SamplingPlanner();
 
-        void InitializeSamplingPlan(int samplesPerPixel, Film *film);
+        void Initialize(int samplesPerPixel, Film *film);
         virtual void UpdateSamplingPlan(Film *film) = 0;
         bool StartNextIteration();
 
         int PlannedSamples(Point2i &pixel) { return sampleMap[pixel.x][pixel.y]; }
 
-        int currentAdaptiveIteration;
-        int plannedAdaptiveIterations;
+        int currentIteration;
+        int plannedIterations;
         int maxPixelSamplesPerIteration; //For each iteration
 
     protected:
         std::vector<std::vector<int>> sampleMap;
         int sampleBudgetPerPixel;
+        int64_t totalSampleBudget;
+        int filmWidth;
+        int filmHeight;
 
-        virtual void CreateSamplingPlan(int samplesPerPixel, Film *film) = 0;
+        virtual void CreateSamplingPlan(Film *film) = 0;
         void CreateSampleMap(Film *film);
+        void FillMapUniformly(int samplesPerPixel);
     };
 
 }

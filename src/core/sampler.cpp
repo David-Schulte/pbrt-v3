@@ -65,14 +65,22 @@ bool Sampler::StartNextSample()
 {
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
-    return ++currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel);
+    currentPixelSampleIndex += 1;
+    return currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel);
+}
+
+void Sampler::AddSamplingPlanner(std::string name)
+{
+    if (name == "nonadaptive") samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+    else if (name == "nlmeans") samplingPlanner = std::shared_ptr<SamplingPlanner>(new NLMeansSamplingPlanner());
+    else LOG(FATAL) << "Sampler: AddSamplingPlanner: Given name is undefined!";
 }
 
 void Sampler::InitializeSamplingPlan(Film *film)
 {
     if (samplingPlanner == nullptr) LOG(FATAL) << "Sampler does not have a samplingPlanner";
 
-    samplingPlanner->InitializeSamplingPlan(averagePerPixelSampleBudget, film);
+    samplingPlanner->Initialize(averagePerPixelSampleBudget, film);
     maxSamplesPerPixel = samplingPlanner->maxPixelSamplesPerIteration;
     AdaptToSamplingPlan();
 }

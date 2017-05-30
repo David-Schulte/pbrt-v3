@@ -20,7 +20,7 @@ namespace pbrt
         virtual void UpdateSamplingPlan(Film * film) override;
 
     protected:
-        virtual void CreateSamplingPlan(int samplesPerPixel, Film * film) override;
+        virtual void CreateSamplingPlan(Film * film) override;
     };
 
 }

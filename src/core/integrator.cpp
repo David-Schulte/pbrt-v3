@@ -240,11 +240,12 @@ void SamplerIntegrator::Render(const Scene &scene)
     nTiles = Point2i((sampleExtent.x + tileSize - 1) / tileSize,
                      (sampleExtent.y + tileSize - 1) / tileSize);
 
-    ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
-
     sampler->InitializeSamplingPlan(camera->film);
+    ProgressReporter reporter(nTiles.x * nTiles.y * sampler->samplingPlanner->plannedIterations, "Rendering");
     do
     {
+        LOG(INFO) << "Starting iteration " << sampler->samplingPlanner->currentIteration;
+
         sampler->UpdateSamplingPlan(camera->film);
 
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
@@ -254,6 +255,7 @@ void SamplerIntegrator::Render(const Scene &scene)
 
             reporter.Update();
         }, nTiles);
+
     } 
     while (sampler->StartNextIteration());
 
@@ -282,7 +284,7 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
     int seed = tile.y * nTiles.x + tile.x; // Sampler seed is based on index of the tile
     std::unique_ptr<Sampler> tileSampler = sampler->Clone(seed); // Get sampler instance for tile
 
-    LOG(INFO) << "Starting image tile " << tileBounds;
+    //LOG(INFO) << "Starting image tile " << tileBounds;
 
     // Get _FilmTile_ for tile
     std::unique_ptr<FilmTile> filmTile = camera->film->GetFilmTile(tileBounds);
@@ -304,33 +306,29 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
 
         do
         {
-            // Initialize _CameraSample_ for current sample
-            CameraSample cameraSample = tileSampler->GetCameraSample(pixel);
+            CameraSample cameraSample = tileSampler->GetCameraSample(pixel); // Initialize _CameraSample_ for current sample
 
             // Generate camera ray for current sample
             RayDifferential ray;
             Float rayWeight = camera->GenerateRayDifferential(cameraSample, &ray);
-            ray.ScaleDifferentials(1 / std::sqrt((Float)tileSampler->maxSamplesPerPixel));
+            ray.ScaleDifferentials(1 / std::sqrt((Float)tileSampler->samplingPlanner->PlannedSamples(pixel)));
             ++nCameraRays;
 
-            // Evaluate radiance along camera ray
             Spectrum radiance(0.f);
-            if (rayWeight > 0) radiance = Li(ray, scene, *tileSampler, arena);
+            if (rayWeight > 0) radiance = Li(ray, scene, *tileSampler, arena); // Evaluate radiance along camera ray
 
             CheckRadiance(radiance, pixel, tileSampler); // Ensure radiance is within limits and valid
 
             VLOG(1) << "Camera sample: " << cameraSample << " -> ray: " << ray << " -> radiance = " << radiance;
 
-            // Add camera ray's contribution to image
-            filmTile->AddSample(cameraSample.pFilm, radiance, rayWeight);
-
-            // Free _MemoryArena_ memory from computing image sample
-            // value
-            arena.Reset();
-        } while (tileSampler->StartNextSample());
+            filmTile->AddSample(cameraSample.pFilm, radiance, rayWeight); // Add camera ray's contribution to image
+            
+            arena.Reset(); // Free _MemoryArena_ memory from computing image sample value
+        } 
+        while (tileSampler->StartNextSample());
     }
 
-    LOG(INFO) << "Finished image tile " << tileBounds;
+    //LOG(INFO) << "Finished image tile " << tileBounds;
 
     // Merge image tile into _Film_
     camera->film->MergeFilmTile(std::move(filmTile));

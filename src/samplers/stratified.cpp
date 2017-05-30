@@ -85,8 +85,8 @@ StratifiedSampler *CreateStratifiedSampler(const ParamSet &params) {
 
     StratifiedSampler *sampler = new StratifiedSampler(xsamp, ysamp, jitter, sd);
 
-    std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
-    if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+    std::string samplingPlannerName = params.FindOneString("samplingplanner", "nonadaptive");
+    sampler->AddSamplingPlanner(samplingPlannerName);
 
     return sampler;
 }

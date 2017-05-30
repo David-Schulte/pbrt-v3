@@ -81,8 +81,8 @@ ZeroTwoSequenceSampler *CreateZeroTwoSequenceSampler(const ParamSet &params) {
 
     ZeroTwoSequenceSampler *sampler = new ZeroTwoSequenceSampler(nsamp, sd);
 
-    std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
-    if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+    std::string samplingPlannerName = params.FindOneString("samplingplanner", "nonadaptive");
+    sampler->AddSamplingPlanner(samplingPlannerName);
 
     return sampler;
 }

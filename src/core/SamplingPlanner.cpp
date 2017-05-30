@@ -10,12 +10,18 @@ namespace pbrt
     SamplingPlanner::SamplingPlanner() {}
     SamplingPlanner::~SamplingPlanner() {}
 
-    void SamplingPlanner::InitializeSamplingPlan(int samplesPerPixel, Film * film)
+    void SamplingPlanner::Initialize(int samplesPerPixel, Film * film)
     {
-        currentAdaptiveIteration = 1;
+        currentIteration = 1;
+        sampleBudgetPerPixel = samplesPerPixel;
+
+        Bounds2i filmBounds = film->croppedPixelBounds;
+        filmWidth = filmBounds.pMax.x - filmBounds.pMin.x;
+        filmHeight = filmBounds.pMax.y - filmBounds.pMin.y;
+        totalSampleBudget = sampleBudgetPerPixel * filmWidth * filmHeight;
 
         CreateSampleMap(film);
-        CreateSamplingPlan(samplesPerPixel, film);
+        CreateSamplingPlan(film);
     }
 
     void SamplingPlanner::CreateSampleMap(Film * film)
@@ -25,12 +31,19 @@ namespace pbrt
         sampleMap = std::vector<std::vector<int>>(sampleExtent.x, std::vector<int>(sampleExtent.y));
     }
 
+    void SamplingPlanner::FillMapUniformly(int samplesPerPixel)
+    {
+        for (int column = 0; column < sampleMap.size(); column++)
+            for (int row = 0; row < sampleMap[0].size(); row++)
+                sampleMap[column][row] = samplesPerPixel;
+    }
+
     bool SamplingPlanner::StartNextIteration()
     {
-        currentAdaptiveIteration++;
+        currentIteration++;
 
-        if (currentAdaptiveIteration > plannedAdaptiveIterations) return false;
-        else                                                      return true;
+        if (currentIteration > plannedIterations) return false;
+        else                                      return true;
     }
 
 }

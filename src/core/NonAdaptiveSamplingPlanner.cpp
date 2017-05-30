@@ -12,19 +12,13 @@ namespace pbrt
 
     void NonAdaptiveSamplingPlanner::UpdateSamplingPlan(Film * film)
     {
-        for (int row = 0; row < sampleMap.size(); row++)
-        {
-            for (int column = 0; column < sampleMap[0].size(); column++)
-            {
-                sampleMap[row][column] = maxPixelSamplesPerIteration;
-            }
-        }
+        FillMapUniformly(maxPixelSamplesPerIteration);
     }
 
-    void NonAdaptiveSamplingPlanner::CreateSamplingPlan(int samplesPerPixel, Film *film)
+    void NonAdaptiveSamplingPlanner::CreateSamplingPlan(Film *film)
     {
-        plannedAdaptiveIterations = 1;
-        maxPixelSamplesPerIteration = samplesPerPixel;
+        plannedIterations = 1;
+        maxPixelSamplesPerIteration = sampleBudgetPerPixel;
     }
 
 }

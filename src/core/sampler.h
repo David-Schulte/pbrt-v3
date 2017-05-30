@@ -41,6 +41,7 @@
 // core/sampler.h*
 #include "SamplingPlanner.h"
 #include "NonAdaptiveSamplingPlanner.h"
+#include "NLMeansSamplingPlanner.h"
 #include "pbrt.h"
 #include "geometry.h"
 #include "rng.h"
@@ -77,6 +78,7 @@ class Sampler
 
     virtual bool StartNextSample();
 
+    void AddSamplingPlanner(std::string name);
     void InitializeSamplingPlan(Film *film);
     bool StartNextIteration();
     void UpdateSamplingPlan(Film *film);
