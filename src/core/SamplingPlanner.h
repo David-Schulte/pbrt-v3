@@ -22,7 +22,7 @@ namespace pbrt
         virtual void UpdateSamplingPlan(Film *film) = 0;
         bool StartNextIteration();
 
-        int PlannedSamples(Point2i &pixel) { return sampleMap[pixel.x][pixel.y]; }
+        int PlannedSamples(Point2i &pixel) { return sampleMap[pixel.x+2][pixel.y+2]; }
 
         int currentAdaptiveIteration;
         int plannedAdaptiveIterations;

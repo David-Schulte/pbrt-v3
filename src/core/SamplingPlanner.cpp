@@ -23,6 +23,9 @@ namespace pbrt
         Bounds2i sampleBounds = film->GetSampleBounds();
         Vector2i sampleExtent = sampleBounds.Diagonal();
         sampleMap = std::vector<std::vector<int>>(sampleExtent.x, std::vector<int>(sampleExtent.y));
+		printf("sampleExent: [%i,%i]\n", sampleExtent.x, sampleExtent.y);
+		printf("sampleMap X resolution: %i\n", sampleMap.size());
+		printf("sampleMap Y resolution: %i\n", sampleMap[0].size());
     }
 
     bool SamplingPlanner::StartNextIteration()

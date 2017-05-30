@@ -242,6 +242,12 @@ void SamplerIntegrator::Render(const Scene &scene)
 
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
 
+	printf("Film x,y: [%i,%i]\n", camera->film->fullResolution.x, camera->film->fullResolution.y);
+
+	camera->film->GetPhysicalExtent().Diagonal();
+
+	printf("Film physica extent x,y: [%i,%i]\n", camera->film->GetPhysicalExtent().Diagonal().x, camera->film->GetPhysicalExtent().Diagonal().y);
+
     sampler->InitializeSamplingPlan(camera->film);
     do
     {
@@ -293,6 +299,10 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
         {
             ProfilePhase pp(Prof::StartPixel);
             tileSampler->StartPixel(pixel);
+			if (pixel.x<0||pixel.y<0)
+			{
+				printf("pixel x,y: [%i,%i]\n", pixel.x, pixel.y);
+			}
         }
 
         // Do this check after the StartPixel() call; this keeps

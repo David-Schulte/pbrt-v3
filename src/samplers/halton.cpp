@@ -139,7 +139,11 @@ HaltonSampler *CreateHaltonSampler(const ParamSet &params,
     HaltonSampler *sampler = new HaltonSampler(nsamp, sampleBounds, sampleAtCenter);
 
     std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
-    if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+	//if (samplingPlanner == "nonadaptive")
+	//{
+		printf("%s\n",samplingPlanner);
+		sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+	//}
 
     return sampler;
 }

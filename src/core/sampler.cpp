@@ -65,7 +65,7 @@ bool Sampler::StartNextSample()
 {
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
-    return ++currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel);
+	return ++currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel);
 }
 
 void Sampler::InitializeSamplingPlan(Film *film)

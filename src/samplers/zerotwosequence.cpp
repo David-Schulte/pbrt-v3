@@ -54,9 +54,9 @@ void ZeroTwoSequenceSampler::StartPixel(const Point2i &p) {
     ProfilePhase _(Prof::StartPixel);
     // Generate 1D and 2D pixel sample components using $(0,2)$-sequence
     for (size_t i = 0; i < samples1D.size(); ++i)
-        VanDerCorput(1, samplingPlanner->maxPixelSamplesPerIteration, &samples1D[i][0], rng);
+        //VanDerCorput(1, samplingPlanner->maxPixelSamplesPerIteration, &samples1D[i][0], rng);
     for (size_t i = 0; i < samples2D.size(); ++i)
-        Sobol2D(1, samplingPlanner->maxPixelSamplesPerIteration, &samples2D[i][0], rng);
+        //Sobol2D(1, samplingPlanner->maxPixelSamplesPerIteration, &samples2D[i][0], rng);
 
     // Generate 1D and 2D array samples using $(0,2)$-sequence
     for (size_t i = 0; i < samples1DArraySizes.size(); ++i)
@@ -82,7 +82,7 @@ ZeroTwoSequenceSampler *CreateZeroTwoSequenceSampler(const ParamSet &params) {
     ZeroTwoSequenceSampler *sampler = new ZeroTwoSequenceSampler(nsamp, sd);
 
     std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
-    if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+    //if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
 
     return sampler;
 }
