@@ -111,7 +111,26 @@ int64_t HaltonSampler::GetIndexForSample(int64_t sampleNum) const {
             offsetForCurrentPixel %= sampleStride;
         }
         pixelForOffset = currentPixel;
-    }
+		
+		//if (currentPixel.x == 750 && currentPixel.y == 750)
+		//{
+		//	printf("\n Halton sampler member variables:\n");
+		//	printf("\t sampleStride: %i\n");
+		//	printf("\t offsetForCurrentPixel: %i\n\n");
+		//}
+	}
+
+	if (currentPixel.x == 750 && currentPixel.y == 750)
+	{
+		printf("\n Halton sampler member variables:\n");
+		printf("\t sampleStride: %i\n");
+		printf("\t offsetForCurrentPixel: %i\n\n");
+
+		printf("\n _sampleNum_: %i \n\n", sampleNum);
+
+		printf("\n GetIndexForSample, output: %i \n\n", (offsetForCurrentPixel + sampleNum * sampleStride));
+	}
+
     return offsetForCurrentPixel + sampleNum * sampleStride;
 }
 

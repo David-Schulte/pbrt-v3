@@ -42,7 +42,7 @@ namespace pbrt {
 // Sampler Method Definitions
 Sampler::~Sampler() {}
 
-Sampler::Sampler(int64_t samplesPerPixel) : averagePerPixelSampleBudget(samplesPerPixel), currentPixelSampleIndex(0){ printf("AveragePerPixelSampleBudget: %i\n", averagePerPixelSampleBudget); }
+Sampler::Sampler(int64_t samplesPerPixel) : averagePerPixelSampleBudget(samplesPerPixel), maxSamplesPerPixel(16){ printf("AveragePerPixelSampleBudget: %i\n", averagePerPixelSampleBudget); } // Debug!
 
 CameraSample Sampler::GetCameraSample(const Point2i &pRaster) 
 {
@@ -50,6 +50,15 @@ CameraSample Sampler::GetCameraSample(const Point2i &pRaster)
     cs.pFilm = (Point2f)pRaster + Get2D();
     cs.time = Get1D();
     cs.pLens = Get2D();
+
+	if (currentPixel.x == 750 && currentPixel.y == 750)
+	{
+		printf("\n Camera sample values:\n");
+		printf("\t cs.pFilm: [%f , %f ]\n", cs.pFilm.x, cs.pFilm.y);
+		printf("\t cs.time: %i\n", cs.time);
+		printf("\t cs.pLens: [ %f , %f ]\n\n", cs.pLens.x, cs.pLens.y);
+	}
+
     return cs;
 }
 
@@ -72,8 +81,8 @@ bool Sampler::StartNextSample()
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
 	++currentPixelSampleIndex;
-	/*if(currentPixelSampleIndex>8)
-		printf("CurrentPixelSampleIndex: %i\n", currentPixelSampleIndex);*/
+	//if(currentPixelSampleIndex>8)
+		//printf("CurrentPixelSampleIndex: %i\n", currentPixelSampleIndex);
 	return (currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel) + samplingPlanner->CurrentSampleNumber(currentPixel)) && currentPixelSampleIndex < averagePerPixelSampleBudget;
 }
 
@@ -82,7 +91,7 @@ void Sampler::InitializeSamplingPlan(Film *film)
     if (samplingPlanner == nullptr) LOG(FATAL) << "Sampler does not have a samplingPlanner";
 
     samplingPlanner->InitializeSamplingPlan(averagePerPixelSampleBudget, film);
-    maxSamplesPerPixel = samplingPlanner->maxPixelSamplesPerIteration;
+    //maxSamplesPerPixel = samplingPlanner->maxPixelSamplesPerIteration;
     AdaptToSamplingPlan();
 }
 
@@ -105,32 +114,32 @@ bool Sampler::SetSampleNumber(int64_t sampleNum) {
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
     currentPixelSampleIndex = sampleNum;
-    return currentPixelSampleIndex < maxSamplesPerPixel;
+    return currentPixelSampleIndex < averagePerPixelSampleBudget;
 }
 
 void Sampler::Request1DArray(int n) {
     CHECK_EQ(RoundCount(n), n);
     samples1DArraySizes.push_back(n);
-    sampleArray1D.push_back(std::vector<Float>(n * maxSamplesPerPixel));
+    sampleArray1D.push_back(std::vector<Float>(n * averagePerPixelSampleBudget));
 }
 
 void Sampler::Request2DArray(int n) {
     CHECK_EQ(RoundCount(n), n);
     samples2DArraySizes.push_back(n);
-    sampleArray2D.push_back(std::vector<Point2f>(n * maxSamplesPerPixel));
+    sampleArray2D.push_back(std::vector<Point2f>(n * averagePerPixelSampleBudget));
 }
 
 const Float *Sampler::Get1DArray(int n) {
     if (array1DOffset == sampleArray1D.size()) return nullptr;
     CHECK_EQ(samples1DArraySizes[array1DOffset], n);
-    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, averagePerPixelSampleBudget);
     return &sampleArray1D[array1DOffset++][currentPixelSampleIndex * n];
 }
 
 const Point2f *Sampler::Get2DArray(int n) {
     if (array2DOffset == sampleArray2D.size()) return nullptr;
     CHECK_EQ(samples2DArraySizes[array2DOffset], n);
-    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, averagePerPixelSampleBudget);
     return &sampleArray2D[array2DOffset++][currentPixelSampleIndex * n];
 }
 
@@ -158,7 +167,7 @@ bool PixelSampler::SetSampleNumber(int64_t sampleNum) {
 
 Float PixelSampler::Get1D() {
     ProfilePhase _(Prof::GetSample);
-    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, averagePerPixelSampleBudget);
     if (current1DDimension < samples1D.size())
         return samples1D[current1DDimension++][currentPixelSampleIndex];
     else
@@ -167,7 +176,7 @@ Float PixelSampler::Get1D() {
 
 Point2f PixelSampler::Get2D() {
     ProfilePhase _(Prof::GetSample);
-    CHECK_LT(currentPixelSampleIndex, maxSamplesPerPixel);
+    CHECK_LT(currentPixelSampleIndex, averagePerPixelSampleBudget);
     if (current2DDimension < samples2D.size())
         return samples2D[current2DDimension++][currentPixelSampleIndex];
     else
@@ -190,14 +199,15 @@ void GlobalSampler::StartPixel(const Point2i &p) {
     ProfilePhase _(Prof::StartPixel);
     Sampler::StartPixel(p);
     dimension = 0;
-    intervalSampleIndex = GetIndexForSample(0);
+    //intervalSampleIndex = GetIndexForSample(0);
+	intervalSampleIndex = GetIndexForSample(samplingPlanner->CurrentSampleNumber(p));
     // Compute _arrayEndDim_ for dimensions used for array samples
     arrayEndDim =
         arrayStartDim + sampleArray1D.size() + 2 * sampleArray2D.size();
 
     // Compute 1D array samples for _GlobalSampler_
     for (size_t i = 0; i < samples1DArraySizes.size(); ++i) {
-        int nSamples = samples1DArraySizes[i] * maxSamplesPerPixel;
+        int nSamples = samples1DArraySizes[i] * averagePerPixelSampleBudget;
         for (int j = 0; j < nSamples; ++j) {
             int64_t index = GetIndexForSample(j);
             sampleArray1D[i][j] = SampleDimension(index, arrayStartDim + i);
@@ -207,7 +217,7 @@ void GlobalSampler::StartPixel(const Point2i &p) {
     // Compute 2D array samples for _GlobalSampler_
     int dim = arrayStartDim + samples1DArraySizes.size();
     for (size_t i = 0; i < samples2DArraySizes.size(); ++i) {
-        int nSamples = samples2DArraySizes[i] * maxSamplesPerPixel;
+        int nSamples = samples2DArraySizes[i] * averagePerPixelSampleBudget;
         for (int j = 0; j < nSamples; ++j) {
             int64_t idx = GetIndexForSample(j);
             sampleArray2D[i][j].x = SampleDimension(idx, dim);
@@ -221,6 +231,21 @@ void GlobalSampler::StartPixel(const Point2i &p) {
 bool GlobalSampler::StartNextSample() {
     dimension = 0;
     intervalSampleIndex = GetIndexForSample(currentPixelSampleIndex + 1);
+
+	//int dimension;
+	//int64_t intervalSampleIndex;
+	//static const int arrayStartDim = 5;
+	//int arrayEndDim;
+
+	if (currentPixel.x == 750 && currentPixel.y == 750)
+	{
+		printf("\n Global sampler member variables:\n");
+		printf("\t dimension: %i\n", dimension);
+		printf("\t intervalSampleIndex: %i\n", intervalSampleIndex);
+		printf("\t arrayStartDim: %i\n", arrayStartDim);
+		printf("\t arrayEndDim: %i\n\n", arrayEndDim);
+	}
+
     return Sampler::StartNextSample();
 }
 
@@ -234,7 +259,9 @@ Float GlobalSampler::Get1D() {
     ProfilePhase _(Prof::GetSample);
     if (dimension >= arrayStartDim && dimension < arrayEndDim)
         dimension = arrayEndDim;
-    return SampleDimension(intervalSampleIndex, dimension++);
+	dimension++;
+	//printf("Dimension in 1D: %i\n", dimension);
+    return SampleDimension(intervalSampleIndex, dimension);
 }
 
 Point2f GlobalSampler::Get2D() {
@@ -244,6 +271,7 @@ Point2f GlobalSampler::Get2D() {
     Point2f p(SampleDimension(intervalSampleIndex, dimension),
               SampleDimension(intervalSampleIndex, dimension + 1));
     dimension += 2;
+	//printf("Dimension in 2D: %i\n", dimension);
     return p;
 }
 

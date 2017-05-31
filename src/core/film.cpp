@@ -184,7 +184,7 @@ void Film::WriteImage(Float splatScale) {
 
         // Normalize pixel with weight sum
         Float filterWeightSum = pixel.filterWeightSum;
-		filterWeightSum -= 4.0f;//debug
+		//filterWeightSum -= 4.0f;// Debug!
         if (filterWeightSum != 0) {
             Float invWt = (Float)1 / filterWeightSum;
             rgb[3 * offset] = std::max((Float)0, rgb[3 * offset] * invWt);

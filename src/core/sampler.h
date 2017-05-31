@@ -85,7 +85,7 @@ class Sampler
 	void PlannedAdaptiveIterations(int plannedAdaptiveIterations) { samplingPlanner->PlannedAdaptiveIterations(plannedAdaptiveIterations); }
 
     // Sampler Public Data
-    int64_t maxSamplesPerPixel;
+    const int64_t maxSamplesPerPixel; // Debug!
 	int64_t averagePerPixelSampleBudget;
     std::shared_ptr<SamplingPlanner> samplingPlanner;
 
