@@ -10,13 +10,13 @@ namespace pbrt
     NonAdaptiveSamplingPlanner::NonAdaptiveSamplingPlanner() {}
     NonAdaptiveSamplingPlanner::~NonAdaptiveSamplingPlanner() {}
 
-    void NonAdaptiveSamplingPlanner::UpdateSamplingPlan(Film * film)
+    void NonAdaptiveSamplingPlanner::UpdateSamplingPlan(Film * film, const int64_t adaptiveSamplesCount)
     {
-        for (int row = 0; row < sampleMap.size(); row++)
+        for (int row = 0; row < plannedSampleMap.size(); row++)
         {
-            for (int column = 0; column < sampleMap[0].size(); column++)
+            for (int column = 0; column < plannedSampleMap[0].size(); column++)
             {
-                sampleMap[row][column] = maxPixelSamplesPerIteration;
+                plannedSampleMap[row][column] = maxPixelSamplesPerIteration;
             }
         }
 		printf("UPDATESAMPLEPLANNER!\n");

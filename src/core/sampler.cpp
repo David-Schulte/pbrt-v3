@@ -42,7 +42,7 @@ namespace pbrt {
 // Sampler Method Definitions
 Sampler::~Sampler() {}
 
-Sampler::Sampler(int64_t samplesPerPixel) : averagePerPixelSampleBudget(samplesPerPixel) {}
+Sampler::Sampler(int64_t samplesPerPixel) : averagePerPixelSampleBudget(samplesPerPixel), currentPixelSampleIndex(0){ printf("AveragePerPixelSampleBudget: %i\n", averagePerPixelSampleBudget); }
 
 CameraSample Sampler::GetCameraSample(const Point2i &pRaster) 
 {
@@ -56,7 +56,13 @@ CameraSample Sampler::GetCameraSample(const Point2i &pRaster)
 void Sampler::StartPixel(const Point2i &p) 
 {
     currentPixel = p;
-    currentPixelSampleIndex = 0;
+    //currentPixelSampleIndex = 0;
+	currentPixelSampleIndex = samplingPlanner->CurrentSampleNumber(p);
+	//if (currentPixelSampleIndex>8)
+	//{
+	//	printf("CurrentPixelSampleIndex: %i\n", currentPixelSampleIndex);
+	//}
+	
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
 }
@@ -65,7 +71,10 @@ bool Sampler::StartNextSample()
 {
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
-	return ++currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel);
+	++currentPixelSampleIndex;
+	/*if(currentPixelSampleIndex>8)
+		printf("CurrentPixelSampleIndex: %i\n", currentPixelSampleIndex);*/
+	return (currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel) + samplingPlanner->CurrentSampleNumber(currentPixel)) && currentPixelSampleIndex < averagePerPixelSampleBudget;
 }
 
 void Sampler::InitializeSamplingPlan(Film *film)
@@ -82,9 +91,14 @@ bool Sampler::StartNextIteration()
     return samplingPlanner->StartNextIteration();
 }
 
-void Sampler::UpdateSamplingPlan(Film * film)
+void Sampler::UpdateSamplingPlan(Film * film, const int64_t adaptiveSamplesCount)
 {
-    samplingPlanner->UpdateSamplingPlan(film);
+    samplingPlanner->UpdateSamplingPlan(film, adaptiveSamplesCount);
+}
+
+void Sampler::UpdateCurrentSampleNumberMap()
+{
+	samplingPlanner->UpdateCurrentSampleNumberMap();
 }
 
 bool Sampler::SetSampleNumber(int64_t sampleNum) {

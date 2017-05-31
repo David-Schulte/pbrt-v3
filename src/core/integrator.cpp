@@ -246,20 +246,25 @@ void SamplerIntegrator::Render(const Scene &scene)
 
 	camera->film->GetPhysicalExtent().Diagonal();
 
-	printf("Film physica extent x,y: [%i,%i]\n", camera->film->GetPhysicalExtent().Diagonal().x, camera->film->GetPhysicalExtent().Diagonal().y);
+	printf("Film physical extent x,y: [%f,%f]\n", camera->film->GetPhysicalExtent().Diagonal().x, camera->film->GetPhysicalExtent().Diagonal().y);
 
     sampler->InitializeSamplingPlan(camera->film);
+	sampler->PlannedAdaptiveIterations(16); // Debug!
+
     do
     {
-        sampler->UpdateSamplingPlan(camera->film);
+        sampler->UpdateSamplingPlan(camera->film,1); // Debug!
 
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
         {
             //Render tiles for each buffer
             RenderTile(scene, tile);
 
-            reporter.Update();
+            //reporter.Update();
         }, nTiles);
+
+		sampler->UpdateCurrentSampleNumberMap();
+		//camera->film->;
     } 
     while (sampler->StartNextIteration());
 
@@ -299,10 +304,10 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
         {
             ProfilePhase pp(Prof::StartPixel);
             tileSampler->StartPixel(pixel);
-			if (pixel.x<0||pixel.y<0)
-			{
-				printf("pixel x,y: [%i,%i]\n", pixel.x, pixel.y);
-			}
+			//if (pixel.x<0||pixel.y<0)
+			//{
+			//	printf("pixel x,y: [%i,%i]\n", pixel.x, pixel.y);
+			//}
         }
 
         // Do this check after the StartPixel() call; this keeps

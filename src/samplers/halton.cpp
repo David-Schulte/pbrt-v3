@@ -135,15 +135,30 @@ HaltonSampler *CreateHaltonSampler(const ParamSet &params,
     int nsamp = params.FindOneInt("pixelsamples", 16);
     if (PbrtOptions.quickRender) nsamp = 1;
     bool sampleAtCenter = params.FindOneBool("samplepixelcenter", false);
+	std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+	samplingPlanner = params.FindOneString("samplingplanner", "lpadaptive");
+
+	if (samplingPlanner == "lpadaptive")
+	{
+		nsamp = 128;
+	}
 
     HaltonSampler *sampler = new HaltonSampler(nsamp, sampleBounds, sampleAtCenter);
 
-    std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+    
 	//if (samplingPlanner == "nonadaptive")
 	//{
-		printf("%s\n",samplingPlanner);
-		sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+	//	printf("%s\n",samplingPlanner);
+	//	sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
 	//}
+
+	
+
+	if (samplingPlanner == "lpadaptive")
+	{
+		printf("%s\n", samplingPlanner);
+		sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new LPSamplingPlanner());
+	}
 
     return sampler;
 }

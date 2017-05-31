@@ -126,6 +126,12 @@ void Film::MergeFilmTile(std::unique_ptr<FilmTile> tile) {
         tilePixel.contribSum.ToXYZ(xyz);
         for (int i = 0; i < 3; ++i) mergePixel.xyz[i] += xyz[i];
         mergePixel.filterWeightSum += tilePixel.filterWeightSum;
+		if (pixel.x == 750 && pixel.y == 750)
+		{
+			printf("xyz = [%f,%f,%f]\n", xyz[0], xyz[1], xyz[2]);
+			printf("mergePixel.xyz = [%f,%f,%f]\n", mergePixel.xyz[0], mergePixel.xyz[1], mergePixel.xyz[2]);
+			printf("Filter weight sum: %f\n", mergePixel.filterWeightSum);
+		}
     }
 }
 
@@ -178,6 +184,7 @@ void Film::WriteImage(Float splatScale) {
 
         // Normalize pixel with weight sum
         Float filterWeightSum = pixel.filterWeightSum;
+		filterWeightSum -= 4.0f;//debug
         if (filterWeightSum != 0) {
             Float invWt = (Float)1 / filterWeightSum;
             rgb[3 * offset] = std::max((Float)0, rgb[3 * offset] * invWt);

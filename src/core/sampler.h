@@ -41,6 +41,7 @@
 // core/sampler.h*
 #include "SamplingPlanner.h"
 #include "NonAdaptiveSamplingPlanner.h"
+#include "LPSamplingPlanner.h"
 #include "pbrt.h"
 #include "geometry.h"
 #include "rng.h"
@@ -79,10 +80,13 @@ class Sampler
 
     void InitializeSamplingPlan(Film *film);
     bool StartNextIteration();
-    void UpdateSamplingPlan(Film *film);
+    void UpdateSamplingPlan(Film *film, const int64_t adaptiveSamplesCount = 0);
+	void UpdateCurrentSampleNumberMap();
+	void PlannedAdaptiveIterations(int plannedAdaptiveIterations) { samplingPlanner->PlannedAdaptiveIterations(plannedAdaptiveIterations); }
 
     // Sampler Public Data
     int64_t maxSamplesPerPixel;
+	int64_t averagePerPixelSampleBudget;
     std::shared_ptr<SamplingPlanner> samplingPlanner;
 
   protected:
@@ -98,7 +102,7 @@ class Sampler
   private:
     // Sampler Private Data
     size_t array1DOffset, array2DOffset;
-    int64_t averagePerPixelSampleBudget;
+    //int64_t averagePerPixelSampleBudget;
 };
 
 class PixelSampler : public Sampler {

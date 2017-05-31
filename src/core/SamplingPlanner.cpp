@@ -22,11 +22,23 @@ namespace pbrt
     {
         Bounds2i sampleBounds = film->GetSampleBounds();
         Vector2i sampleExtent = sampleBounds.Diagonal();
-        sampleMap = std::vector<std::vector<int>>(sampleExtent.x, std::vector<int>(sampleExtent.y));
+        plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y,0));
+		currentSampleNumberMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y,0));
 		printf("sampleExent: [%i,%i]\n", sampleExtent.x, sampleExtent.y);
-		printf("sampleMap X resolution: %i\n", sampleMap.size());
-		printf("sampleMap Y resolution: %i\n", sampleMap[0].size());
+		printf("plannedSampleMap X resolution: %i\n", plannedSampleMap.size());
+		printf("plannedSampleMap Y resolution: %i\n", plannedSampleMap[0].size());
     }
+
+	void SamplingPlanner::UpdateCurrentSampleNumberMap() 
+	{
+		for (size_t row = 0; row < currentSampleNumberMap.size(); row++)
+		{
+			for (size_t column = 0; column < currentSampleNumberMap[0].size(); column++)
+			{
+				currentSampleNumberMap[row][column] += plannedSampleMap[row][column];
+			}
+		}
+	}
 
     bool SamplingPlanner::StartNextIteration()
     {
