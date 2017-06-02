@@ -46,7 +46,7 @@
 namespace pbrt {
 
 // PathIntegrator Declarations
-class PathIntegrator : public SamplerIntegrator {
+class PathIntegrator : public AdaptiveSamplerIntegrator {
   public:
     // PathIntegrator Public Methods
     PathIntegrator(int maxDepth, std::shared_ptr<const Camera> camera,
