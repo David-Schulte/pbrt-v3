@@ -17,8 +17,6 @@ namespace pbrt
         NLMeansSamplingPlanner();
         ~NLMeansSamplingPlanner();
 
-        virtual void UpdateSamplingPlan(Film * film) override;
-
     protected:
         const int initialBudgetTarget = 10; //How many samples per pixel are aimed for in the first iteration
         const int iterationBudgetTarget = 5; //How many samples per pixel are aimed for in each subsequent iteration
@@ -26,6 +24,7 @@ namespace pbrt
 
         void PlanIterations();
         void PlanMaximalSamplesPerPixel();
+        virtual void UpdateSampleMap(Film * film) override;
         virtual void CreateSamplingPlan(Film * film) override;
     };
 

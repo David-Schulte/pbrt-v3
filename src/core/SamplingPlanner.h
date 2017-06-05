@@ -20,14 +20,14 @@ namespace pbrt
         ~SamplingPlanner();
 
         void Initialize(int samplesPerPixel, Film *film);
-        virtual void UpdateSamplingPlan(Film *film) = 0;
+        void UpdateSamplingPlan(Film *film);
         bool StartNextIteration();
-
-        int PlannedSamples(Point2i &pixel) { return sampleMap[pixel.x][pixel.y]; }
+        int SamplesOfPreviousIterations(const Point2i &pixel);
+        int PlannedSamplesForThisIteration(const Point2i &pixel);
 
         int currentIteration;
         int plannedIterations;
-        int maxPixelSamplesPerIteration; //For each iteration
+        int maxSamplesPerPixel; //For each iteration
 
     protected:
         std::vector<std::vector<int>> sampleMap;
@@ -35,10 +35,16 @@ namespace pbrt
         int64_t totalSampleBudget;
         int filmWidth;
         int filmHeight;
-
+        
         virtual void CreateSamplingPlan(Film *film) = 0;
+        virtual void UpdateSampleMap(Film *film) = 0;
         void CreateSampleMap(Film *film);
-        void FillMapUniformly(int samplesPerPixel);
+        void FillMapUniformly(std::vector<std::vector<int>> & map, int value);
+
+    private: 
+        std::vector<std::vector<int>> totalDistribution;
+
+        void AddSampleMapToDistribution();
     };
 
 }

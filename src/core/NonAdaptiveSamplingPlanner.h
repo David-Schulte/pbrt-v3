@@ -17,9 +17,8 @@ namespace pbrt
         NonAdaptiveSamplingPlanner();
         ~NonAdaptiveSamplingPlanner();
 
-        virtual void UpdateSamplingPlan(Film * film) override;
-
     protected:
+        virtual void UpdateSampleMap(Film * film) override;
         virtual void CreateSamplingPlan(Film * film) override;
     };
 

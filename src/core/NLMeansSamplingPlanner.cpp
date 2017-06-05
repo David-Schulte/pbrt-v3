@@ -10,20 +10,11 @@ namespace pbrt
     NLMeansSamplingPlanner::NLMeansSamplingPlanner() {}
     NLMeansSamplingPlanner::~NLMeansSamplingPlanner() {}
 
-    void NLMeansSamplingPlanner::UpdateSamplingPlan(Film * film)
+    void NLMeansSamplingPlanner::UpdateSampleMap(Film * film)
     {
-        //if (currentIteration == 1) return FillMapUniformly(iterationBudgets[currentIteration - 1]);
-        //
-        //FillMapUniformly(iterationBudgets[currentIteration - 1]);
+        if (currentIteration == 1) return FillMapUniformly(sampleMap, iterationBudgets[currentIteration - 1]);
 
-        for (int column = 0; column < sampleMap.size(); column++)
-        {
-            for (int row = 0; row < sampleMap[0].size(); row++)
-            {
-                if (row < 600) sampleMap[column][row] = 1;
-                else           sampleMap[column][row] = 50;
-            }
-        }
+        FillMapUniformly(sampleMap, iterationBudgets[currentIteration - 1]);
     }
 
     void NLMeansSamplingPlanner::CreateSamplingPlan(Film *film)
@@ -56,7 +47,7 @@ namespace pbrt
 
     void NLMeansSamplingPlanner::PlanMaximalSamplesPerPixel()
     {
-        maxPixelSamplesPerIteration = 51;
+        maxSamplesPerPixel = plannedIterations * iterationBudgetTarget * 20;
     }
 
 }

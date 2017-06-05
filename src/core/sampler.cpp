@@ -56,7 +56,10 @@ CameraSample Sampler::GetCameraSample(const Point2i &pRaster)
 void Sampler::StartPixel(const Point2i &p) 
 {
     currentPixel = p;
-    currentPixelSampleIndex = 0;
+    currentPixelSampleIndex = samplingPlanner->SamplesOfPreviousIterations(currentPixel);
+
+    //for (int i = 0; i < currentPixelSampleIndex; i++) GetCameraSample(currentPixel);
+
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
 }
@@ -66,7 +69,8 @@ bool Sampler::StartNextSample()
     // Reset array offsets for next pixel sample
     array1DOffset = array2DOffset = 0;
     currentPixelSampleIndex += 1;
-    return currentPixelSampleIndex < samplingPlanner->PlannedSamples(currentPixel);
+    int samplesNeeded = samplingPlanner->SamplesOfPreviousIterations(currentPixel) + samplingPlanner->PlannedSamplesForThisIteration(currentPixel);
+    return currentPixelSampleIndex < samplesNeeded;
 }
 
 void Sampler::AddSamplingPlanner(std::string name)
@@ -81,7 +85,7 @@ void Sampler::InitializeSamplingPlan(Film *film)
     if (samplingPlanner == nullptr) LOG(FATAL) << "Sampler does not have a samplingPlanner";
 
     samplingPlanner->Initialize(averagePerPixelSampleBudget, film);
-    maxSamplesPerPixel = samplingPlanner->maxPixelSamplesPerIteration;
+    maxSamplesPerPixel = samplingPlanner->maxSamplesPerPixel;
     AdaptToSamplingPlan();
 }
 
@@ -175,8 +179,8 @@ void PixelSampler::AdaptToSamplingPlan()
 
     for (int i = 0; i < samplingDimensions; ++i) 
     {
-        samples1D.push_back(std::vector<Float>(samplingPlanner->maxPixelSamplesPerIteration));
-        samples2D.push_back(std::vector<Point2f>(samplingPlanner->maxPixelSamplesPerIteration));
+        samples1D.push_back(std::vector<Float>(samplingPlanner->maxSamplesPerPixel));
+        samples2D.push_back(std::vector<Point2f>(samplingPlanner->maxSamplesPerPixel));
     }
 }
 
@@ -184,7 +188,7 @@ void GlobalSampler::StartPixel(const Point2i &p) {
     ProfilePhase _(Prof::StartPixel);
     Sampler::StartPixel(p);
     dimension = 0;
-    intervalSampleIndex = GetIndexForSample(0);
+    intervalSampleIndex = GetIndexForSample(samplingPlanner->SamplesOfPreviousIterations(p));
     // Compute _arrayEndDim_ for dimensions used for array samples
     arrayEndDim =
         arrayStartDim + sampleArray1D.size() + 2 * sampleArray2D.size();

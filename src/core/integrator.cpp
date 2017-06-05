@@ -281,7 +281,7 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
 {
     MemoryArena arena; // Allocate _MemoryArena_ for tile
     Bounds2i tileBounds = BoundsForTile(tile);
-    int seed = tile.y * nTiles.x + tile.x; // Sampler seed is based on index of the tile
+    int seed = sampler->samplingPlanner->currentIteration * tile.y * nTiles.x + tile.x; // Sampler seed is based on index of the tile and iteration -> unique but deterministic
     std::unique_ptr<Sampler> tileSampler = sampler->Clone(seed); // Get sampler instance for tile
 
     //LOG(INFO) << "Starting image tile " << tileBounds;
@@ -311,7 +311,7 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
             // Generate camera ray for current sample
             RayDifferential ray;
             Float rayWeight = camera->GenerateRayDifferential(cameraSample, &ray);
-            ray.ScaleDifferentials(1 / std::sqrt((Float)tileSampler->samplingPlanner->PlannedSamples(pixel)));
+            ray.ScaleDifferentials(1 / std::sqrt((Float)tileSampler->samplingPlanner->PlannedSamplesForThisIteration(pixel)));
             ++nCameraRays;
 
             Spectrum radiance(0.f);

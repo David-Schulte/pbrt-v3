@@ -10,15 +10,15 @@ namespace pbrt
     NonAdaptiveSamplingPlanner::NonAdaptiveSamplingPlanner() {}
     NonAdaptiveSamplingPlanner::~NonAdaptiveSamplingPlanner() {}
 
-    void NonAdaptiveSamplingPlanner::UpdateSamplingPlan(Film * film)
+    void NonAdaptiveSamplingPlanner::UpdateSampleMap(Film * film)
     {
-        FillMapUniformly(maxPixelSamplesPerIteration);
+        FillMapUniformly(sampleMap, maxSamplesPerPixel);
     }
 
     void NonAdaptiveSamplingPlanner::CreateSamplingPlan(Film *film)
     {
         plannedIterations = 1;
-        maxPixelSamplesPerIteration = sampleBudgetPerPixel;
+        maxSamplesPerPixel = sampleBudgetPerPixel;
     }
 
 }
