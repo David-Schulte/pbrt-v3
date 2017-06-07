@@ -1403,6 +1403,11 @@ YY_RULE_SETUP
 #line 210 "/Users/mmp/pbrt-v3/src/core/pbrtlex.ll"
 ECHO;
 	YY_BREAK
+case 72:
+	YY_RULE_SETUP
+#line 170 "/Users/mmp/pbrt-v3/src/core/pbrtlex.ll"
+	{ return ADAPTIVEEVALUATER; }
+	YY_BREAK
 #line 1407 "/Users/mmp/build/pbrt-v3/pbrtlex.cpp"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(STR):

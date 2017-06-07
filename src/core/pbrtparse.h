@@ -84,7 +84,8 @@
      TRANSLATE = 300,
      WORLDBEGIN = 301,
      WORLDEND = 302,
-     HIGH_PRECEDENCE = 303
+     HIGH_PRECEDENCE = 303,
+	 ADAPTIVE_EVALUATER = 304
    };
 #endif
 /* Tokens.  */
@@ -134,7 +135,7 @@
 #define WORLDBEGIN 301
 #define WORLDEND 302
 #define HIGH_PRECEDENCE 303
-
+#define ADAPTIVEEVALUATER 304
 
 
 

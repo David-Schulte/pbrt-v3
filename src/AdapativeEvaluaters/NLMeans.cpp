@@ -1,12 +1,16 @@
 #include "NLMeans.h"
 namespace pbrt {
-	NLMeans::NLMeans(Film* film,int samplesPerPixel){
+	NLMeans::NLMeans(Film* film, int samplebudget){
 		m_film = film;
 		int x_resolution = film->fullResolution.x;
 		int y_resolution = film->fullResolution.y;
-		std::vector < unsigned int > temp_x_res(x_resolution, 1);
+		std::vector < unsigned int > temp_x_res(x_resolution, samplebudget);
 		std::vector < std::vector < unsigned int > > temp_sampleMap(y_resolution, temp_x_res);
 		m_sampleMap = temp_sampleMap;
+
+		std::vector < unsigned int > temp_done_x_res(x_resolution, 0);
+		std::vector < std::vector < unsigned int > > temp_doneSampleMap(y_resolution, temp_done_x_res);
+		m_doneSampleMap = temp_doneSampleMap;
 		return;
 	};
 
@@ -16,16 +20,19 @@ namespace pbrt {
 
 	void NLMeans::updateSampleMap(){};
 
-	std::vector<Point2i> NLMeans::getPointsInArea(Point2i p0, Point2i p1){
-		std::vector<Point2i> pointsInArea;
-		
-		for (int i = p0.y; i < p1.y; i++) // loop in y direction
-		{
-			for (int j = p0.x; j < p1.x; j++) //copy all values in x direction
-			{
-					pointsInArea.push_back(Point2i(j, i));
-			}
-		}
-		return pointsInArea;
+	unsigned int NLMeans::getDoneSampleCount(Point2i p0)
+	{			
+		return m_doneSampleMap.at(p0.y).at(p0.x);
 	};
+
+	unsigned int NLMeans::getSampleCount(Point2i p0)
+	{
+		return m_sampleMap.at(p0.y).at(p0.x);
+	};
+
+	NLMeans *CreateNLMeans(Film* film, int samplebudget) 
+	{
+		return new NLMeans(film, samplebudget);
+	}
+
 }

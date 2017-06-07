@@ -42,7 +42,7 @@
 #include "progressreporter.h"
 #include "camera.h"
 #include "stats.h"
-#include "AdapativeEvaluaters\NLMeans.h"
+
 
 namespace pbrt {
 
@@ -437,8 +437,6 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 	Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
 		(sampleExtent.y + tileSize - 1) / tileSize);
 
-	NLMeans test = NLMeans(camera->film, 128);
-
 	ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
 	{
 		ParallelFor2D([&](Point2i tile) {
@@ -457,13 +455,13 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 			int y1 = std::min(y0 + tileSize, sampleBounds.pMax.y);
 			Bounds2i tileBounds(Point2i(x0, y0), Point2i(x1, y1));
 			LOG(INFO) << "Starting image tile " << tileBounds;
-			std::vector< Point2i > temp_test = test.getPointsInArea(Point2i(x0, y0), Point2i(x1, y1));
+
 			// Get _FilmTile_ for tile
 			std::unique_ptr<FilmTile> filmTile =
 				camera->film->GetFilmTile(tileBounds);
 
 			// Loop over pixels in tile to render them
-			for (Point2i pixel : temp_test) {
+			for (Point2i pixel : tileBounds) {
 				{
 					ProfilePhase pp(Prof::StartPixel);
 					tileSampler->StartPixel(pixel);
@@ -474,8 +472,11 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 				// debugging.
 				if (!InsideExclusive(pixel, pixelBounds))
 					continue;
-
-				do {
+				unsigned int doneSampleCount = a_eval->getDoneSampleCount(pixel);
+				unsigned int sampleCount = a_eval->getSampleCount(pixel);
+				tileSampler->SetSampleNumber(doneSampleCount);
+				for (; doneSampleCount < sampleCount; tileSampler->SetSampleNumber(++doneSampleCount))
+				{
 					// Initialize _CameraSample_ for current sample
 					CameraSample cameraSample =
 						tileSampler->GetCameraSample(pixel);
@@ -526,7 +527,7 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 					// Free _MemoryArena_ memory from computing image sample
 					// value
 					arena.Reset();
-				} while (false && tileSampler->StartNextSample());
+				}
 			}
 			LOG(INFO) << "Finished image tile " << tileBounds;
 

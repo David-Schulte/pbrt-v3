@@ -46,13 +46,14 @@
 namespace pbrt {
 
 // WhittedIntegrator Declarations
-class WhittedIntegrator : public SamplerIntegrator {
+class WhittedIntegrator : public AdaptiveSamplerIntegrator {
   public:
     // WhittedIntegrator Public Methods
     WhittedIntegrator(int maxDepth, std::shared_ptr<const Camera> camera,
                       std::shared_ptr<Sampler> sampler,
-                      const Bounds2i &pixelBounds)
-        : SamplerIntegrator(camera, sampler, pixelBounds), maxDepth(maxDepth) {}
+                      const Bounds2i &pixelBounds,
+					  std::shared_ptr<Adaptive_Evaluater> a_eval)
+        : AdaptiveSamplerIntegrator(camera, sampler, pixelBounds, a_eval), maxDepth(maxDepth) {}
     Spectrum Li(const RayDifferential &ray, const Scene &scene,
                 Sampler &sampler, MemoryArena &arena, int depth) const;
 
@@ -63,7 +64,8 @@ class WhittedIntegrator : public SamplerIntegrator {
 
 WhittedIntegrator *CreateWhittedIntegrator(
     const ParamSet &params, std::shared_ptr<Sampler> sampler,
-    std::shared_ptr<const Camera> camera);
+    std::shared_ptr<const Camera> camera,
+	std::shared_ptr<Adaptive_Evaluater> a_eval);
 
 }  // namespace pbrt
 

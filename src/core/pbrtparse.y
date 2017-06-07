@@ -175,6 +175,7 @@ pbrt::ParamArray *ribarray;
 %token OBJECTINSTANCE PIXELFILTER
 %token REVERSEORIENTATION ROTATE SAMPLER SCALE SHAPE STARTTIME
 %token INTEGRATOR TEXTURE TRANSFORMBEGIN TRANSFORMEND TRANSFORMTIMES
+%token ADAPTIVE_EVALUATER
 %token TRANSFORM TRANSLATE WORLDBEGIN WORLDEND
 
 %token HIGH_PRECEDENCE
@@ -583,6 +584,15 @@ pbrt_stmt: ACCELERATOR STRING paramlist
     pbrt::ParamSet params;
     pbrt::InitParamSet(params, pbrt::SpectrumType::Reflectance);
     pbrt::pbrtIntegrator($2, params);
+    pbrt::FreeArgs();
+}
+
+
+| ADAPTIVE_EVALUATER STRING paramlist
+{
+    pbrt::ParamSet params;
+    pbrt::InitParamSet(params, pbrt::SpectrumType::Reflectance);
+    pbrt::pbrtAdaptiveEvaluater($2, params);
     pbrt::FreeArgs();
 }
 

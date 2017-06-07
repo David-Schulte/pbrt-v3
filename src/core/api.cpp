@@ -43,6 +43,7 @@
 // API Additional Headers
 #include "accelerators/bvh.h"
 #include "accelerators/kdtreeaccel.h"
+#include "AdapativeEvaluaters\NLMeans.h"
 #include "cameras/environment.h"
 #include "cameras/orthographic.h"
 #include "cameras/perspective.h"
@@ -165,6 +166,8 @@ struct RenderOptions {
     ParamSet FilmParams;
     std::string SamplerName = "halton";
     ParamSet SamplerParams;
+	std::string AdaptiveEvaluaterName = "NLMeans";
+	ParamSet AdaptiveEvaluaterParams;
     std::string AcceleratorName = "bvh";
     ParamSet AcceleratorParams;
     std::string IntegratorName = "path";
@@ -695,6 +698,19 @@ std::shared_ptr<Sampler> MakeSampler(const std::string &name,
     return std::shared_ptr<Sampler>(sampler);
 }
 
+std::shared_ptr<Adaptive_Evaluater> MakeAdaptiveEvaluater(const std::string &name,
+	const ParamSet &paramSet,
+	Film *film) {
+	Adaptive_Evaluater *adaptive_Evaluater = nullptr;
+	const int samplebudget = paramSet.FindOneInt("samplebudget", 25);
+	if (name == "NLMeans")
+		adaptive_Evaluater = CreateNLMeans(film, samplebudget);
+	else
+		Warning("Sampler \"%s\" unknown.", name.c_str());
+	paramSet.ReportUnused();
+	return std::shared_ptr<Adaptive_Evaluater>(adaptive_Evaluater);
+}
+
 std::unique_ptr<Filter> MakeFilter(const std::string &name,
                                    const ParamSet &paramSet) {
     Filter *filter = nullptr;
@@ -921,6 +937,17 @@ void pbrtAccelerator(const std::string &name, const ParamSet &params) {
         params.Print(catIndentCount);
         printf("\n");
     }
+}
+
+void pbrtAdaptiveEvaluater(const std::string &name, const ParamSet &params) {
+	VERIFY_OPTIONS("Adaptive_Evaluater");
+	renderOptions->AdaptiveEvaluaterName = name;
+	renderOptions->AdaptiveEvaluaterParams = params;
+	if (PbrtOptions.cat || PbrtOptions.toPly) {
+		printf("%*sAdaptive Evaluater \"%s\" ", catIndentCount, "", name.c_str());
+		params.Print(catIndentCount);
+		printf("\n");
+	}
 }
 
 void pbrtIntegrator(const std::string &name, const ParamSet &params) {
@@ -1427,24 +1454,30 @@ Integrator *RenderOptions::MakeIntegrator() const {
         Error("Unable to create camera");
         return nullptr;
     }
-
+	
     std::shared_ptr<Sampler> sampler =
         MakeSampler(SamplerName, SamplerParams, camera->film);
     if (!sampler) {
         Error("Unable to create sampler.");
         return nullptr;
     }
+	
+	std::shared_ptr<Adaptive_Evaluater> a_eval = MakeAdaptiveEvaluater(AdaptiveEvaluaterName, AdaptiveEvaluaterParams, camera->film);
+	if (!a_eval) {
+		Error("Unable to create sampler.");
+		return nullptr;
+	}
 
     Integrator *integrator = nullptr;
     if (IntegratorName == "whitted")
-        integrator = CreateWhittedIntegrator(IntegratorParams, sampler, camera);
+        integrator = CreateWhittedIntegrator(IntegratorParams, sampler, camera, a_eval);
     else if (IntegratorName == "directlighting")
         integrator =
             CreateDirectLightingIntegrator(IntegratorParams, sampler, camera);
     else if (IntegratorName == "path")
-        integrator = CreatePathIntegrator(IntegratorParams, sampler, camera);
+        integrator = CreatePathIntegrator(IntegratorParams, sampler, camera, a_eval);
     else if (IntegratorName == "volpath")
-        integrator = CreateVolPathIntegrator(IntegratorParams, sampler, camera);
+        integrator = CreateVolPathIntegrator(IntegratorParams, sampler, camera, a_eval);
     else if (IntegratorName == "bdpt") {
         integrator = CreateBDPTIntegrator(IntegratorParams, sampler, camera);
     } else if (IntegratorName == "mlt") {

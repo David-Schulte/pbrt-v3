@@ -188,8 +188,8 @@ Spectrum VolPathIntegrator::Li(const RayDifferential &r, const Scene &scene,
 }
 
 VolPathIntegrator *CreateVolPathIntegrator(
-    const ParamSet &params, std::shared_ptr<Sampler> sampler,
-    std::shared_ptr<const Camera> camera) {
+	const ParamSet &params, std::shared_ptr<Sampler> sampler,
+	std::shared_ptr<const Camera> camera, std::shared_ptr<Adaptive_Evaluater> a_eval) {
     int maxDepth = params.FindOneInt("maxdepth", 5);
     int np;
     const int *pb = params.FindInt("pixelbounds", &np);
@@ -208,7 +208,7 @@ VolPathIntegrator *CreateVolPathIntegrator(
     Float rrThreshold = params.FindOneFloat("rrthreshold", 1.);
     std::string lightStrategy =
         params.FindOneString("lightsamplestrategy", "spatial");
-    return new VolPathIntegrator(maxDepth, camera, sampler, pixelBounds,
+    return new VolPathIntegrator(maxDepth, camera, sampler,a_eval, pixelBounds,
                                  rrThreshold, lightStrategy);
 }
 

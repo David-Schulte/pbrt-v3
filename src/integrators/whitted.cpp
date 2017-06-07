@@ -88,7 +88,7 @@ Spectrum WhittedIntegrator::Li(const RayDifferential &ray, const Scene &scene,
 
 WhittedIntegrator *CreateWhittedIntegrator(
     const ParamSet &params, std::shared_ptr<Sampler> sampler,
-    std::shared_ptr<const Camera> camera) {
+    std::shared_ptr<const Camera> camera, std::shared_ptr<Adaptive_Evaluater> a_eval) {
     int maxDepth = params.FindOneInt("maxdepth", 5);
     int np;
     const int *pb = params.FindInt("pixelbounds", &np);
@@ -104,7 +104,7 @@ WhittedIntegrator *CreateWhittedIntegrator(
                 Error("Degenerate \"pixelbounds\" specified.");
         }
     }
-    return new WhittedIntegrator(maxDepth, camera, sampler, pixelBounds);
+    return new WhittedIntegrator(maxDepth, camera, sampler, pixelBounds,a_eval);
 }
 
 }  // namespace pbrt

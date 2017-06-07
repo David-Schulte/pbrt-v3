@@ -6,20 +6,25 @@
 
 namespace pbrt {
 	
-	class NLMeans : Adaptive_Evaluater
+	class NLMeans : public Adaptive_Evaluater
 	{
 	public:
 		NLMeans(Film* film, int samplesPerPixel);
 		~NLMeans();
 		bool hasNextIteration();
+		unsigned int getDoneSampleCount(Point2i p0);
+		unsigned int getSampleCount(Point2i p0);
 		void updateSampleMap();
-		std::vector<Point2i> getPointsInArea(Point2i p0, Point2i p1);
-
+		
 	private:
 		Film *m_film;
+		bool m_hasNextIteration;
 		int m_samplesPerPixel;
+		std::vector< std::vector < unsigned int > > m_doneSampleMap;
 		std::vector< std::vector < unsigned int > > m_sampleMap;
 	};
+
+	NLMeans *CreateNLMeans(Film* film, int samplesPerPixel);
 }
 
 #endif

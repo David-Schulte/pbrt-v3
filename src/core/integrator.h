@@ -46,7 +46,7 @@
 #include "reflection.h"
 #include "sampler.h"
 #include "material.h"
-
+#include "AdapativeEvaluaters\A_Eval.h"
 namespace pbrt {
 
 // Integrator Declarations
@@ -109,8 +109,9 @@ public:
 	// SamplerIntegrator Public Methods
 	AdaptiveSamplerIntegrator(std::shared_ptr<const Camera> camera,
 		std::shared_ptr<Sampler> sampler,
-		const Bounds2i &pixelBounds)
-		: camera(camera), sampler(sampler), pixelBounds(pixelBounds) {}
+		const Bounds2i &pixelBounds,
+		std::shared_ptr<Adaptive_Evaluater> a_eval)
+		: camera(camera), sampler(sampler), pixelBounds(pixelBounds),a_eval(a_eval) {}
 	virtual void Preprocess(const Scene &scene, Sampler &sampler) {}
 	void Render(const Scene &scene);
 	virtual Spectrum Li(const RayDifferential &ray, const Scene &scene,
@@ -132,6 +133,7 @@ protected:
 private:
 	// AdaptiveSamplerIntegrator Private Data
 	std::shared_ptr<Sampler> sampler;
+	std::shared_ptr<Adaptive_Evaluater> a_eval;
 	const Bounds2i pixelBounds;
 };
 

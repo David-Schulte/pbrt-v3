@@ -129,6 +129,7 @@ IDENT [a-zA-Z_][a-zA-Z_0-9]*
 <COMMENT>\n { pbrt::line_num++; if (pbrt::PbrtOptions.cat || pbrt::PbrtOptions.toPly) putchar('\n'); BEGIN INITIAL; }
 Accelerator             { return ACCELERATOR; }
 ActiveTransform         { return ACTIVETRANSFORM; }
+Adaptive_Evaluater      { return ADAPTIVE_EVALUATER; }
 All                     { return ALL; }
 AreaLightSource         { return AREALIGHTSOURCE; }
 AttributeBegin          { return ATTRIBUTEBEGIN; }
@@ -167,6 +168,7 @@ Transform               { return TRANSFORM; }
 Translate               { return TRANSLATE; }
 WorldBegin              { return WORLDBEGIN; }
 WorldEnd                { return WORLDEND; }
+
 {WHITESPACE} /* do nothing */
 \n { pbrt::line_num++; }
 {NUMBER} {

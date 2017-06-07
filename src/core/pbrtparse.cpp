@@ -111,7 +111,8 @@
      TRANSLATE = 300,
      WORLDBEGIN = 301,
      WORLDEND = 302,
-     HIGH_PRECEDENCE = 303
+     HIGH_PRECEDENCE = 303,
+	 AdaptiveEvaluater = 304
    };
 #endif
 /* Tokens.  */
@@ -161,7 +162,7 @@
 #define WORLDBEGIN 301
 #define WORLDEND 302
 #define HIGH_PRECEDENCE 303
-
+#define AdaptiveEvaluater 304
 
 
 
@@ -671,7 +672,7 @@ static const char *const yytname[] =
   "REVERSEORIENTATION", "ROTATE", "SAMPLER", "SCALE", "SHAPE", "STARTTIME",
   "INTEGRATOR", "TEXTURE", "TRANSFORMBEGIN", "TRANSFORMEND",
   "TRANSFORMTIMES", "TRANSFORM", "TRANSLATE", "WORLDBEGIN", "WORLDEND",
-  "HIGH_PRECEDENCE", "$accept", "start", "array_init", "string_array_init",
+  "HIGH_PRECEDENCE","ADAPTIVEEVALUATER", "$accept", "start", "array_init", "string_array_init",
   "num_array_init", "array", "string_array", "single_element_string_array",
   "string_list", "string_list_entry", "num_array",
   "single_element_num_array", "num_list", "num_list_entry", "paramlist",
@@ -689,7 +690,7 @@ static const yytype_uint16 yytoknum[] =
      265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
      275,   276,   277,   278,   279,   280,   281,   282,   283,   284,
      285,   286,   287,   288,   289,   290,   291,   292,   293,   294,
-     295,   296,   297,   298,   299,   300,   301,   302,   303
+     295,   296,   297,   298,   299,   300,   301,   302,   303,	304
 };
 # endif
 
@@ -2151,6 +2152,15 @@ yyreduce:
 ;}
     break;
 
+  case 67:
+#line 648 "/Users/mmp/pbrt-v3/src/core/pbrtparse.y"
+  {
+	  pbrt::ParamSet params;
+	  pbrt::InitParamSet(params, pbrt::SpectrumType::Reflectance);
+	  pbrt::pbrtAdaptiveEvaluater((yyvsp[(2) - (3)].string), params);
+	  pbrt::FreeArgs();
+  }
+  break;
 
 /* Line 1267 of yacc.c.  */
 #line 2157 "/Users/mmp/build/pbrt-v3/pbrtparse.c"
