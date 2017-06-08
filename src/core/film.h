@@ -56,6 +56,22 @@ struct FilmTilePixel {
 
 // Film Declarations
 class Film {
+private:
+	// Film Private Data
+	struct Pixel {
+		Pixel() { xyz[0] = xyz[1] = xyz[2] = filterWeightSum = 0; }
+		Float xyz[3];
+		Float filterWeightSum;
+		AtomicFloat splatXYZ[3];
+		Float pad;
+	};
+	std::unique_ptr<Pixel[]> pixels;
+	static PBRT_CONSTEXPR int filterTableWidth = 16;
+	Float filterTable[filterTableWidth * filterTableWidth];
+	std::mutex mutex;
+	const Float scale;
+	const Float maxSampleLuminance;
+
   public:
     // Film Public Methods
     Film(const Point2i &resolution, const Bounds2f &cropWindow,
@@ -77,22 +93,6 @@ class Film {
     std::unique_ptr<Filter> filter;
     const std::string filename;
     Bounds2i croppedPixelBounds;
-
-  private:
-    // Film Private Data
-    struct Pixel {
-        Pixel() { xyz[0] = xyz[1] = xyz[2] = filterWeightSum = 0; }
-        Float xyz[3];
-        Float filterWeightSum;
-        AtomicFloat splatXYZ[3];
-        Float pad;
-    };
-    std::unique_ptr<Pixel[]> pixels;
-    static PBRT_CONSTEXPR int filterTableWidth = 16;
-    Float filterTable[filterTableWidth * filterTableWidth];
-    std::mutex mutex;
-    const Float scale;
-    const Float maxSampleLuminance;
 
     // Film Private Methods
     Pixel &GetPixel(const Point2i &p) {

@@ -97,6 +97,7 @@ void Sampler::InitializeSamplingPlan(Film *film)
 
 bool Sampler::StartNextIteration()
 {
+	samplingPlanner->firstIteration = false;
     return samplingPlanner->StartNextIteration();
 }
 

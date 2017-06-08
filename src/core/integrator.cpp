@@ -249,7 +249,7 @@ void SamplerIntegrator::Render(const Scene &scene)
 	printf("Film physical extent x,y: [%f,%f]\n", camera->film->GetPhysicalExtent().Diagonal().x, camera->film->GetPhysicalExtent().Diagonal().y);
 
     sampler->InitializeSamplingPlan(camera->film);
-	sampler->PlannedAdaptiveIterations(16); // Debug!
+	sampler->PlannedAdaptiveIterations(0); // Debug!
 
     do
     {

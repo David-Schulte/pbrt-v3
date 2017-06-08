@@ -676,9 +676,34 @@ Camera *MakeCamera(const std::string &name, const ParamSet &paramSet,
     return camera;
 }
 
+std::shared_ptr<SamplingPlanner> MakeSamplingPlanner(const std::string &name,
+	const ParamSet &params,
+	const Film *film) {
+
+	std::shared_ptr<SamplingPlanner> samplingPlanner;
+	int initRenderSamples = params.FindOneInt("pixelsamples", 16);
+	if (PbrtOptions.quickRender) initRenderSamples = 1;
+	std::string samplingPlannerStr = params.FindOneString("samplingplanner", "nonadaptive");
+	//samplingPlannerStr = params.FindOneString("samplingplanner", "lpadaptive");
+
+	if (samplingPlannerStr == "lpadaptive")
+	{
+		printf("%s\n", samplingPlanner);
+		samplingPlanner = std::shared_ptr<SamplingPlanner>(new LPSamplingPlanner(film->fullResolution.x, film->fullResolution.y));
+	}
+	else if (samplingPlannerStr == "nonadaptive")
+	{
+		printf("%s\n", samplingPlanner);
+		samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+	}
+	samplingPlanner->setInitialRenderSamples(initRenderSamples);
+	return samplingPlanner;
+}
+
 std::shared_ptr<Sampler> MakeSampler(const std::string &name,
                                      const ParamSet &paramSet,
                                      const Film *film) {
+	std::shared_ptr<SamplingPlanner> samplingPlanner = MakeSamplingPlanner( name, paramSet, film);
     Sampler *sampler = nullptr;
     if (name == "lowdiscrepancy" || name == "02sequence")
         sampler = CreateZeroTwoSequenceSampler(paramSet);
@@ -695,6 +720,7 @@ std::shared_ptr<Sampler> MakeSampler(const std::string &name,
     else
         Warning("Sampler \"%s\" unknown.", name.c_str());
     paramSet.ReportUnused();
+	sampler->samplingPlanner = samplingPlanner;
     return std::shared_ptr<Sampler>(sampler);
 }
 

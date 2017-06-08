@@ -64,23 +64,9 @@ std::unique_ptr<Sampler> SobolSampler::Clone(int seed) {
 
 SobolSampler *CreateSobolSampler(const ParamSet &params,
                                  const Bounds2i &sampleBounds) {
-    int nsamp = params.FindOneInt("pixelsamples", 16);
-    if (PbrtOptions.quickRender) nsamp = 1;
-
-	std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
-	samplingPlanner = params.FindOneString("samplingplanner", "lpadaptive");
-
-	if (samplingPlanner == "lpadaptive")
-	{
-		nsamp = 128;
-	}
-
+	int nsamp = 128;// params.FindOneInt("pixelsamples", 16);
+	
     SobolSampler *sampler = new SobolSampler(nsamp, sampleBounds);
-
-	if (samplingPlanner == "lpadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new LPSamplingPlanner());
-
-    //std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
-    //if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
 
     return sampler;
 }
