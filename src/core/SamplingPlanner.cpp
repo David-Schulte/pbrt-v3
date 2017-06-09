@@ -22,7 +22,7 @@ namespace pbrt
     {
         Bounds2i sampleBounds = film->GetSampleBounds();
         Vector2i sampleExtent = sampleBounds.Diagonal();
-        plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y,0));
+        plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y,initialRenderSamplesPerPixels));
 		currentSampleNumberMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y,0));
 		printf("sampleExent: [%i,%i]\n", sampleExtent.x, sampleExtent.y);
 		printf("plannedSampleMap X resolution: %i\n", plannedSampleMap.size());
@@ -42,6 +42,7 @@ namespace pbrt
 
     bool SamplingPlanner::StartNextIteration()
     {
+		firstIteration = false;
         currentAdaptiveIteration++;
 
         if (currentAdaptiveIteration > plannedAdaptiveIterations) return false;

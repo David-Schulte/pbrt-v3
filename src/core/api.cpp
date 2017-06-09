@@ -684,7 +684,7 @@ std::shared_ptr<SamplingPlanner> MakeSamplingPlanner(const std::string &name,
 	int initRenderSamples = params.FindOneInt("pixelsamples", 16);
 	if (PbrtOptions.quickRender) initRenderSamples = 1;
 	std::string samplingPlannerStr = params.FindOneString("samplingplanner", "nonadaptive");
-	//samplingPlannerStr = params.FindOneString("samplingplanner", "lpadaptive");
+	samplingPlannerStr = params.FindOneString("samplingplanner", "lpadaptive");
 
 	if (samplingPlannerStr == "lpadaptive")
 	{
