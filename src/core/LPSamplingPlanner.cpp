@@ -27,9 +27,10 @@ namespace pbrt
 			fillMapVal = adaptiveSamplesCount;
 		
 		//get center pixels
-		for (int row = (grid.granularity / 2)+2; row + grid.granularity < plannedSampleMap.size()-2; row += grid.granularity)
+		Point2i margin = computeMargin(film);
+		for (int row = (grid.granularity / 2)+2+margin.x; row + grid.granularity/2 < plannedSampleMap.size()-2; row += grid.granularity)
 		{
-			for (int column = (grid.granularity / 2)+2; column + grid.granularity < plannedSampleMap.size()-2; column += grid.granularity)
+			for (int column = (grid.granularity / 2)+2+margin.y; column + grid.granularity/2 < plannedSampleMap[0].size()-2; column += grid.granularity)
 			{
 				
 				//TODO: Compute linear model here and estimate error of model
@@ -88,6 +89,14 @@ namespace pbrt
 				initialRenderFilm[row][column] = rawPixelData(film->GetPixel(Point2i(row, column)).xyz);
 			}
 		}
+	}
+
+	Point2i LPSamplingPlanner::computeMargin(Film * film)
+	{
+		int marginX = film->fullResolution.x % grid.granularity;
+		int marginY = film->fullResolution.y % grid.granularity;
+	
+		return Point2i(marginX/2, marginY/2);
 	}
 	
 }

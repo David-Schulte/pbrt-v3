@@ -15,7 +15,7 @@ namespace pbrt
 		AdaptiveGrid(int fixedWindowSize = 191) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
 		void refineGrid() { granularity /= 2; }
 
-		float granularity;
+		int granularity;
 		int64_t fixedWindowSize;
 	};
 
@@ -44,7 +44,7 @@ namespace pbrt
 	protected:
 		virtual void CreateSamplingPlan(int samplesPerPixel, Film * film) override;
 		virtual void copyInitialRenderFilm(Film* film);
-		
+		virtual Point2i computeMargin(Film* film);
 
 	private:
 		AdaptiveGrid grid;

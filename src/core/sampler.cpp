@@ -51,14 +51,6 @@ CameraSample Sampler::GetCameraSample(const Point2i &pRaster)
     cs.time = Get1D();
     cs.pLens = Get2D();
 
-	if (currentPixel.x == 750 && currentPixel.y == 750)
-	{
-		printf("\n Camera sample values:\n");
-		printf("\t cs.pFilm: [%f , %f ]\n", cs.pFilm.x, cs.pFilm.y);
-		printf("\t cs.time: %i\n", cs.time);
-		printf("\t cs.pLens: [ %f , %f ]\n\n", cs.pLens.x, cs.pLens.y);
-	}
-
     return cs;
 }
 
@@ -236,15 +228,6 @@ bool GlobalSampler::StartNextSample() {
 	//int64_t intervalSampleIndex;
 	//static const int arrayStartDim = 5;
 	//int arrayEndDim;
-
-	if (currentPixel.x == 750 && currentPixel.y == 750)
-	{
-		printf("\n Global sampler member variables:\n");
-		printf("\t dimension: %i\n", dimension);
-		printf("\t intervalSampleIndex: %i\n", intervalSampleIndex);
-		printf("\t arrayStartDim: %i\n", arrayStartDim);
-		printf("\t arrayEndDim: %i\n\n", arrayEndDim);
-	}
 
     return Sampler::StartNextSample();
 }

@@ -242,12 +242,9 @@ void SamplerIntegrator::Render(const Scene &scene)
 
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
 
-	printf("Film x,y: [%i,%i]\n", camera->film->fullResolution.x, camera->film->fullResolution.y);
-
 	camera->film->GetPhysicalExtent().Diagonal();
 
-	printf("Film physical extent x,y: [%f,%f]\n", camera->film->GetPhysicalExtent().Diagonal().x, camera->film->GetPhysicalExtent().Diagonal().y);
-
+	
     sampler->InitializeSamplingPlan(camera->film);
 	sampler->PlannedAdaptiveIterations(2); // Debug!
 
