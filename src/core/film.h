@@ -75,6 +75,7 @@ namespace pbrt
           std::unique_ptr<Filter> filter;
           const std::string filename;
           Bounds2i croppedPixelBounds;
+          int amountOfBuffers;
 
           // Film Public Methods
           Film(const Point2i &resolution, const Bounds2f &cropWindow,
@@ -92,18 +93,7 @@ namespace pbrt
           void Clear();
           void SetBuffers(const int count = 1);
     
-      private:
-          // Film Private Data
-          std::vector<std::unique_ptr<Pixel[]>> buffers;
-          static PBRT_CONSTEXPR int filterTableWidth = 16;
-          Float filterTable[filterTableWidth * filterTableWidth];
-          std::mutex mutex;
-          const Float scale;
-          const Float maxSampleLuminance;
-          int amountOfBuffers;
-          
-          // Film Private Methods
-          Pixel &GetPixel(const int buffer, const Point2i &p) 
+          Pixel &GetPixel(const int buffer, const Point2i &p)
           {
               CHECK(buffer >= 0 && buffer < buffers.size());
               CHECK(InsideExclusive(p, croppedPixelBounds));
@@ -121,7 +111,7 @@ namespace pbrt
               for (int buffer = 0; buffer < amountOfBuffers; buffer++)
               {
                   Pixel &merge = GetPixel(buffer, p);
-              
+
                   for (int i = 0; i < 3; ++i) combined->xyz[i] += merge.xyz[i];
                   for (int i = 0; i < 3; ++i) combined->splatXYZ[i].Add(merge.splatXYZ[i]);
                   combined->filterWeightSum += merge.filterWeightSum;
@@ -130,6 +120,15 @@ namespace pbrt
 
               return combined;
           }
+
+      private:
+          // Film Private Data
+          std::vector<std::unique_ptr<Pixel[]>> buffers;
+          static PBRT_CONSTEXPR int filterTableWidth = 16;
+          Float filterTable[filterTableWidth * filterTableWidth];
+          std::mutex mutex;
+          const Float scale;
+          const Float maxSampleLuminance;
     };
     
     class FilmTile 
