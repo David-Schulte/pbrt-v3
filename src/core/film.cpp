@@ -62,8 +62,7 @@ Film::Film(const Point2i &resolution, const Bounds2f &cropWindow,
         croppedPixelBounds;
 
     // Allocate film image storage
-    pixels = std::unique_ptr<Pixel[]>(new Pixel[croppedPixelBounds.Area()]);
-    filmPixelMemory += croppedPixelBounds.Area() * sizeof(Pixel);
+    SetBuffers(1);
 
     // Precompute filter weight table
     int offset = 0;
@@ -92,105 +91,141 @@ Bounds2f Film::GetPhysicalExtent() const {
     return Bounds2f(Point2f(-x / 2, -y / 2), Point2f(x / 2, y / 2));
 }
 
-std::unique_ptr<FilmTile> Film::GetFilmTile(const Bounds2i &sampleBounds) {
+std::unique_ptr<FilmTile> Film::GetFilmTile(const Bounds2i &sampleBounds) 
+{
     // Bound image pixels that samples in _sampleBounds_ contribute to
     Vector2f halfPixel = Vector2f(0.5f, 0.5f);
     Bounds2f floatBounds = (Bounds2f)sampleBounds;
     Point2i p0 = (Point2i)Ceil(floatBounds.pMin - halfPixel - filter->radius);
-    Point2i p1 = (Point2i)Floor(floatBounds.pMax - halfPixel + filter->radius) +
-                 Point2i(1, 1);
+    Point2i p1 = (Point2i)Floor(floatBounds.pMax - halfPixel + filter->radius) + Point2i(1, 1);
     Bounds2i tilePixelBounds = Intersect(Bounds2i(p0, p1), croppedPixelBounds);
-    return std::unique_ptr<FilmTile>(new FilmTile(
-        tilePixelBounds, filter->radius, filterTable, filterTableWidth,
-        maxSampleLuminance));
+
+    return std::unique_ptr<FilmTile>
+        (
+            new FilmTile(tilePixelBounds, filter->radius, filterTable, filterTableWidth, maxSampleLuminance, amountOfBuffers)
+        );
 }
 
-void Film::Clear() {
-    for (Point2i p : croppedPixelBounds) {
-        Pixel &pixel = GetPixel(p);
-        for (int c = 0; c < 3; ++c)
-            pixel.splatXYZ[c] = pixel.xyz[c] = 0;
-        pixel.filterWeightSum = 0;
+void Film::Clear() 
+{
+    for (int buffer = 0; buffer < amountOfBuffers; buffer++)
+        for (Point2i p : croppedPixelBounds) 
+        {
+            Pixel &pixel = GetPixel(buffer, p);
+            for (int c = 0; c < 3; ++c) pixel.splatXYZ[c] = pixel.xyz[c] = 0;
+            pixel.filterWeightSum = 0;
+        }
+}
+
+void Film::SetBuffers(const int count)
+{
+    CHECK(count >= 1);
+
+    while (buffers.size() > count)
+    {
+        buffers.erase(buffers.begin());
+        filmPixelMemory -= croppedPixelBounds.Area() * sizeof(Pixel);
     }
+
+    while (buffers.size() < count)
+    {
+        buffers.push_back(std::unique_ptr<Pixel[]>(new Pixel[croppedPixelBounds.Area()]));
+        filmPixelMemory += croppedPixelBounds.Area() * sizeof(Pixel);
+    }
+
+    amountOfBuffers = buffers.size();
 }
 
-void Film::MergeFilmTile(std::unique_ptr<FilmTile> tile) {
+void Film::MergeFilmTile(std::unique_ptr<FilmTile> tile) 
+{
     ProfilePhase p(Prof::MergeFilmTile);
     VLOG(1) << "Merging film tile " << tile->pixelBounds;
+
     std::lock_guard<std::mutex> lock(mutex);
-    for (Point2i pixel : tile->GetPixelBounds()) {
-        // Merge _pixel_ into _Film::pixels_
-        const FilmTilePixel &tilePixel = tile->GetPixel(pixel);
-        Pixel &mergePixel = GetPixel(pixel);
-        Float xyz[3];
-        tilePixel.contribSum.ToXYZ(xyz);
-        for (int i = 0; i < 3; ++i) mergePixel.xyz[i] += xyz[i];
-        mergePixel.filterWeightSum += tilePixel.filterWeightSum;
-    }
+
+    for (int buffer = 0; buffer < amountOfBuffers; buffer++)
+        for (Point2i pixel : tile->GetPixelBounds()) 
+        {
+            // Merge _pixel_ into _Film::buffers_
+            const FilmTilePixel &tilePixel = tile->GetPixel(buffer, pixel);
+            Pixel &mergePixel = GetPixel(buffer, pixel);
+            Float xyz[3];
+            tilePixel.contribSum.ToXYZ(xyz);
+            for (int i = 0; i < 3; ++i) mergePixel.xyz[i] += xyz[i];
+            mergePixel.filterWeightSum += tilePixel.filterWeightSum;
+        }
 }
 
-void Film::SetImage(const Spectrum *img) const {
+void Film::SetImage(const Spectrum *img, const int buffer) const 
+{
     int nPixels = croppedPixelBounds.Area();
-    for (int i = 0; i < nPixels; ++i) {
-        Pixel &p = pixels[i];
+    for (int i = 0; i < nPixels; ++i) 
+    {
+        Pixel &p = buffers[buffer][i];
         img[i].ToXYZ(p.xyz);
         p.filterWeightSum = 1;
         p.splatXYZ[0] = p.splatXYZ[1] = p.splatXYZ[2] = 0;
     }
 }
 
-void Film::AddSplat(const Point2f &p, Spectrum v) {
+void Film::AddSplat(const Point2f &p, Spectrum v, const int buffer) 
+{
     ProfilePhase pp(Prof::SplatFilm);
 
-    if (v.HasNaNs()) {
+    if (v.HasNaNs()) 
+    {
         LOG(ERROR) << StringPrintf("Ignoring splatted spectrum with NaN values "
                                    "at (%f, %f)", p.x, p.y);
         return;
-    } else if (v.y() < 0.) {
+    } 
+    else if (v.y() < 0.) 
+    {
         LOG(ERROR) << StringPrintf("Ignoring splatted spectrum with negative "
                                    "luminance %f at (%f, %f)", v.y(), p.x, p.y);
         return;
-    } else if (std::isinf(v.y())) {
+    } 
+    else if (std::isinf(v.y())) 
+    {
         LOG(ERROR) << StringPrintf("Ignoring splatted spectrum with infinite "
                                    "luminance at (%f, %f)", p.x, p.y);
         return;
     }
 
     if (!InsideExclusive((Point2i)p, croppedPixelBounds)) return;
-    if (v.y() > maxSampleLuminance)
-        v *= maxSampleLuminance / v.y();
+
+    if (v.y() > maxSampleLuminance) v *= maxSampleLuminance / v.y();
     Float xyz[3];
     v.ToXYZ(xyz);
-    Pixel &pixel = GetPixel((Point2i)p);
+    Pixel &pixel = GetPixel(buffer, (Point2i)p);
     for (int i = 0; i < 3; ++i) pixel.splatXYZ[i].Add(xyz[i]);
 }
 
-void Film::WriteImage(Float splatScale) {
+void Film::WriteImage(Float splatScale) 
+{
     // Convert image to RGB and compute final pixel values
-    LOG(INFO) <<
-        "Converting image to RGB and computing final weighted pixel values";
+    LOG(INFO) << "Converting image to RGB and computing final weighted pixel values";
     std::unique_ptr<Float[]> rgb(new Float[3 * croppedPixelBounds.Area()]);
+
     int offset = 0;
-    for (Point2i p : croppedPixelBounds) {
+    for (Point2i p : croppedPixelBounds) 
+    {
         // Convert pixel XYZ color to RGB
-        Pixel &pixel = GetPixel(p);
-        XYZToRGB(pixel.xyz, &rgb[3 * offset]);
+        std::shared_ptr<Pixel> pixel = GetCombinedPixel(p);
+        XYZToRGB(pixel->xyz, &rgb[3 * offset]);
 
         // Normalize pixel with weight sum
-        Float filterWeightSum = pixel.filterWeightSum;
-        if (filterWeightSum != 0) {
+        Float filterWeightSum = pixel->filterWeightSum;
+        if (filterWeightSum != 0) 
+        {
             Float invWt = (Float)1 / filterWeightSum;
             rgb[3 * offset] = std::max((Float)0, rgb[3 * offset] * invWt);
-            rgb[3 * offset + 1] =
-                std::max((Float)0, rgb[3 * offset + 1] * invWt);
-            rgb[3 * offset + 2] =
-                std::max((Float)0, rgb[3 * offset + 2] * invWt);
+            rgb[3 * offset + 1] = std::max((Float)0, rgb[3 * offset + 1] * invWt);
+            rgb[3 * offset + 2] = std::max((Float)0, rgb[3 * offset + 2] * invWt);
         }
 
         // Add splat value at pixel
         Float splatRGB[3];
-        Float splatXYZ[3] = {pixel.splatXYZ[0], pixel.splatXYZ[1],
-                             pixel.splatXYZ[2]};
+        Float splatXYZ[3] = {pixel->splatXYZ[0], pixel->splatXYZ[1], pixel->splatXYZ[2]};
         XYZToRGB(splatXYZ, splatRGB);
         rgb[3 * offset] += splatScale * splatRGB[0];
         rgb[3 * offset + 1] += splatScale * splatRGB[1];
@@ -200,12 +235,12 @@ void Film::WriteImage(Float splatScale) {
         rgb[3 * offset] *= scale;
         rgb[3 * offset + 1] *= scale;
         rgb[3 * offset + 2] *= scale;
+
         ++offset;
     }
 
     // Write RGB image
-    LOG(INFO) << "Writing image " << filename << " with bounds " <<
-        croppedPixelBounds;
+    LOG(INFO) << "Writing image " << filename << " with bounds " << croppedPixelBounds;
     pbrt::WriteImage(filename, &rgb[0], croppedPixelBounds, fullResolution);
 }
 
