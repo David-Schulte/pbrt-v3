@@ -19,14 +19,12 @@ namespace pbrt
                 plannedSampleMap[row][column] = maxPixelSamplesPerIteration;
             }
         }
-		printf("UPDATESAMPLEPLANNER!\n");
     }
 
     void NonAdaptiveSamplingPlanner::CreateSamplingPlan(int samplesPerPixel, Film *film)
     {
         plannedAdaptiveIterations = 1;
         maxPixelSamplesPerIteration = samplesPerPixel;
-		printf("CREATESAMPLINGPLAN!\n");
     }
 
 }

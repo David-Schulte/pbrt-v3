@@ -133,8 +133,14 @@ std::unique_ptr<Sampler> HaltonSampler::Clone(int seed) {
 
 HaltonSampler *CreateHaltonSampler(const ParamSet &params,
                                    const Bounds2i &sampleBounds) {
-	int nsamp = 128; //params.FindOneInt("pixelsamples", 16);
+	int nsamp = params.FindOneInt("pixelsamples", 16);
     bool sampleAtCenter = params.FindOneBool("samplepixelcenter", false);
+
+	std::string samplingPlanner = params.FindOneString("samplingplanner","nonadaptive");
+	if (samplingPlanner != "nonadaptive")
+	{
+		nsamp = params.FindOneInt("maxadaptivesamples", 128);
+	}
 
     HaltonSampler *sampler = new HaltonSampler(nsamp, sampleBounds, sampleAtCenter);
 

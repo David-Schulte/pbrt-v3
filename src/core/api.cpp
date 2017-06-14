@@ -118,8 +118,6 @@ namespace pbrt {
 
 // API Global Variables
 Options PbrtOptions;
-const int maxAdaptiveSamples = 128;
-int *maxAdaptiveSamplesPtr = new int[1]{maxAdaptiveSamples};
 
 // API Local Classes
 PBRT_CONSTEXPR int MaxTransforms = 2;
@@ -167,7 +165,6 @@ struct RenderOptions {
     ParamSet FilmParams;
     std::string SamplerName = "halton";
     ParamSet SamplerParams;
-	ParamSet AdaptiveSamplerParams;
     std::string AcceleratorName = "bvh";
     ParamSet AcceleratorParams;
     std::string IntegratorName = "path";
@@ -684,7 +681,6 @@ std::shared_ptr<SamplingPlanner> MakeSamplingPlanner(const std::string &name,
 	int initRenderSamples = params.FindOneInt("pixelsamples", 16);
 	if (PbrtOptions.quickRender) initRenderSamples = 1;
 	std::string samplingPlannerStr = params.FindOneString("samplingplanner", "nonadaptive");
-	samplingPlannerStr = params.FindOneString("samplingplanner", "lpadaptive");
 
 	if (samplingPlannerStr == "lpadaptive")
 	{
@@ -934,10 +930,6 @@ void pbrtSampler(const std::string &name, const ParamSet &params) {
     VERIFY_OPTIONS("Sampler");
     renderOptions->SamplerName = name;
     renderOptions->SamplerParams = params;
-	renderOptions->AdaptiveSamplerParams = params;
-	
-	std::unique_ptr<int[]> maxAdaptiveSamplesUniquePtr(maxAdaptiveSamplesPtr);
-	renderOptions->AdaptiveSamplerParams.AddInt("pixelsamples",std::move(maxAdaptiveSamplesUniquePtr),1);
 
     if (PbrtOptions.cat || PbrtOptions.toPly) {
         printf("%*sSampler \"%s\" ", catIndentCount, "", name.c_str());
