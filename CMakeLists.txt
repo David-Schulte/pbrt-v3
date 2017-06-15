@@ -194,7 +194,7 @@ SET ( PBRT_CORE_SOURCE
 SET ( PBRT_CORE_HEADERS
   src/core/SamplingPlanner.h
   src/core/NonAdaptiveSamplingPlanner.h
-  src/core/LPSamplingPlanner.h.h
+  src/core/LPSamplingPlanner.h
   src/core/api.h
   src/core/bssrdf.h
   src/core/camera.h
