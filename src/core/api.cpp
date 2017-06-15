@@ -30,6 +30,7 @@
 
  */
 
+
 // core/api.cpp*
 #include "api.h"
 #include "parallel.h"
@@ -113,6 +114,21 @@
 #include "media/homogeneous.h"
 #include <map>
 #include <stdio.h>
+
+#include "ext\dlib\matrix.h"
+
+//using namespace dlib;
+
+//static void dlibMatrixTest()
+//{
+//	dlib::matrix<double> M(3, 3);
+//
+//	M = 54.2, 7.4, 12.1,
+//		1, 2, 3,
+//		5.9, 0.05, 1;
+//
+//	std::cout << "Inverse M: \n" << dlib::inv(M) << std::endl;
+//}
 
 namespace pbrt {
 
@@ -1448,6 +1464,8 @@ Scene *RenderOptions::MakeScene() {
 }
 
 Integrator *RenderOptions::MakeIntegrator() const {
+	//dlibMatrixTest();
+
     std::shared_ptr<const Camera> camera(MakeCamera());
     if (!camera) {
         Error("Unable to create camera");
@@ -1511,5 +1529,7 @@ Camera *RenderOptions::MakeCamera() const {
                                   renderOptions->transformEndTime, film);
     return camera;
 }
+
+
 
 }  // namespace pbrt

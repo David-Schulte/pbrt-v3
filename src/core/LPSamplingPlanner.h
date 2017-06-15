@@ -7,6 +7,7 @@
 #define PBRT_CORE_LPSAMPLINGPLANNER_H
 
 #include "SamplingPlanner.h"
+#include "ext\dlib\matrix.h"
 
 namespace pbrt
 {
@@ -49,8 +50,7 @@ namespace pbrt
 
 	protected:
 		virtual void CreateSamplingPlan(int samplesPerPixel, Film * film) override;
-		virtual void copyInitialRenderFilm(Film* film);
-		virtual Point2i computeMargin(Film* film);
+		
 
 	private:
 		AdaptiveGrid grid;
@@ -59,7 +59,14 @@ namespace pbrt
 		std::vector<std::vector<int64_t>> temp_plannedSampleMap; //will be used to accumulate planned sample number until every pixel is covered
 		bool initialRenderFilmReady;
 		bool finalRender;
-		int64_t numberCoveredPixels; 
+		int64_t numberCoveredPixels;
+
+		void computeLinearModel();
+		void estimatePredictionError();
+			
+		int64_t getPlannedSampleNumber();		//Debug! Currently test implementation for matrix inverse computation
+		virtual void copyInitialRenderFilm(Film* film);
+		virtual Point2i computeMargin(Film* film);
 	};
 
 

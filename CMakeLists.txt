@@ -128,6 +128,7 @@ INCLUDE_DIRECTORIES (
   src/ext/openexr/IlmBase/Half
   src/ext/openexr/IlmBase/Iex
   src/ext/openexr/OpenEXR/IlmImf
+  src/ext
   ${CMAKE_BINARY_DIR}/src/ext/openexr/IlmBase/config
   ${CMAKE_BINARY_DIR}/src/ext/openexr/OpenEXR/config
 )
