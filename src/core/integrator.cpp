@@ -233,6 +233,8 @@ std::unique_ptr<Distribution1D> ComputeLightPowerDistribution(
 
 void SamplerIntegrator::Render(const Scene &scene)
 {
+    LOG(INFO) << "Render function executes";
+
     // Initialize values
     Preprocess(scene, *sampler);
     sampleBounds = camera->film->GetSampleBounds();

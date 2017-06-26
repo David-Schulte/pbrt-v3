@@ -150,6 +150,8 @@ INCLUDE_DIRECTORIES (
 SET ( PBRT_CORE_SOURCE
   src/core/SamplingPlanner.cpp
   src/core/NonAdaptiveSamplingPlanner.cpp
+  src/core/NLMeansSamplingPlanner.cpp
+  src/core/NLMeansFilter.cpp
   src/core/api.cpp
   src/core/bssrdf.cpp
   src/core/camera.cpp
@@ -192,6 +194,8 @@ SET ( PBRT_CORE_SOURCE
 SET ( PBRT_CORE_HEADERS
   src/core/SamplingPlanner.h
   src/core/NonAdaptiveSamplingPlanner.h
+  src/core/NLMeansSamplingPlanner.h
+  src/core/NLMeansFilter.h
   src/core/api.h
   src/core/bssrdf.h
   src/core/camera.h

@@ -82,6 +82,7 @@ void Sampler::AddSamplingPlanner(std::string name)
 
 void Sampler::InitializeSamplingPlan(Film *film)
 {
+    LOG(INFO) << "Initializing SamplingPlanner";
     if (samplingPlanner == nullptr) LOG(FATAL) << "Sampler does not have a samplingPlanner";
 
     samplingPlanner->Initialize(averagePerPixelSampleBudget, film);
@@ -176,11 +177,11 @@ void PixelSampler::AdaptToSamplingPlan()
 {
     samples1D.clear();
     samples2D.clear();
-
+    
     for (int i = 0; i < samplingDimensions; ++i) 
     {
-        samples1D.push_back(std::vector<Float>(samplingPlanner->maxSamplesPerPixel));
-        samples2D.push_back(std::vector<Point2f>(samplingPlanner->maxSamplesPerPixel));
+        samples1D.push_back(std::vector<Float>(maxSamplesPerPixel));
+        samples2D.push_back(std::vector<Point2f>(maxSamplesPerPixel));
     }
 }
 

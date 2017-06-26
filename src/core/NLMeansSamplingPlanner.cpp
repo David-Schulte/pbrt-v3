@@ -15,24 +15,11 @@ namespace pbrt
         if (currentIteration == 1) return FillMapUniformly(sampleMap, iterationBudgets[currentIteration - 1]);
 
         FillMapUniformly(sampleMap, iterationBudgets[currentIteration - 1]);
-
-        //Before the last iteration all pixel values in the first buffer are set to 0, while the second buffer remains unchanged
-        //Just a proof of concept for the multi buffer working correctly 
-        //-> Result is an image of approximately half the brightness and effective samples than unaltered.
-        if (currentIteration == plannedIterations)
-        {
-            for (Point2i position : film->croppedPixelBounds)
-            {
-                Pixel &pixel = film->GetPixel(0, position);
-                pixel.xyz[0] = 0;
-                pixel.xyz[1] = 0;
-                pixel.xyz[2] = 0;
-            }
-        }
     }
 
     void NLMeansSamplingPlanner::CreateSamplingPlan(Film *film)
     {
+        filter = std::make_shared<NLMeansFilter>();
         film->SetBuffers(2);
         PlanIterations();
         PlanMaximalSamplesPerPixel();
