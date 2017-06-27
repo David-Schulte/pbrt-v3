@@ -35,8 +35,7 @@ namespace pbrt
                 Float sqrColorDifference[3];
                 for (int i = 0; i < 3; i++)
                 {
-                    sqrColorDifference[i] = current1.xyz[i] - current2.xyz[i];
-                    sqrColorDifference[i] = sqrColorDifference[i] / (current1.filterWeightSum + current2.filterWeightSum);
+                    sqrColorDifference[i] = current1.xyz[i] / current1.filterWeightSum - current2.xyz[i] / current2.filterWeightSum;
                     sqrColorDifference[i] = std::pow(sqrColorDifference[i], 2);
 
                     sumOfSqrDifferences += sqrColorDifference[i];
@@ -46,7 +45,7 @@ namespace pbrt
             }
         }
 
-        float averageSqrDifference = sumOfSqrDifferences / pixelCounter * 3;
+        float averageSqrDifference = sumOfSqrDifferences / (pixelCounter * 3);
         return averageSqrDifference;
     }
 
