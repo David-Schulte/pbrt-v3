@@ -243,12 +243,12 @@ void SamplerIntegrator::Render(const Scene &scene)
                      (sampleExtent.y + tileSize - 1) / tileSize);
 
     sampler->InitializeSamplingPlan(camera->film);
-    ProgressReporter reporter(nTiles.x * nTiles.y * sampler->samplingPlanner->plannedIterations, "Rendering");
+    ProgressReporter reporter(nTiles.x * nTiles.y * sampler->samplingPlanner->plannedIterations + 1, "Rendering");
     do
     {
         LOG(INFO) << "Starting iteration " << sampler->samplingPlanner->currentIteration;
 
-        sampler->UpdateSamplingPlan(camera->film);
+        sampler->UpdateSamplingPlan(camera->film); //Update the distribution of samples for this iteration
 
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
         {
@@ -260,6 +260,9 @@ void SamplerIntegrator::Render(const Scene &scene)
 
     } 
     while (sampler->StartNextIteration());
+
+    sampler->UpdateSamplingPlan(camera->film); //Enable the sampler and SamplingPlanner to post process the rendering result
+    reporter.Update();
 
     reporter.Done();
     LOG(INFO) << "Rendering finished";
