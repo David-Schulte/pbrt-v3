@@ -11,9 +11,9 @@ namespace pbrt
 
     std::vector<std::vector<std::vector<float>>> NLMeansFilter::Filter(Film * film, int weightSourceBuffer, int filterBuffer, int filterRadius, int patchRadius)
     {
-        std::vector<std::vector<std::vector<float>>> filteredColors(film->croppedPixelBounds.pMax.x,                                 //size in 1st dimension
-                                                                    std::vector<std::vector<float>>(film->croppedPixelBounds.pMax.y, //size in 2nd dimension
-                                                                    std::vector<float>(3)));                                         //3 color values for each pixel
+        std::vector<std::vector<std::vector<float>>> filteredColors(film->croppedPixelBounds.pMax.x - film->croppedPixelBounds.pMin.x,                                 //size in 1st dimension
+                                                                    std::vector<std::vector<float>>(film->croppedPixelBounds.pMax.y - film->croppedPixelBounds.pMin.y, //size in 2nd dimension
+                                                                    std::vector<float>(3)));                                                                           //3 color values for each pixel
         
         for (Point2i pixel : film->croppedPixelBounds)
         {
@@ -34,7 +34,7 @@ namespace pbrt
             for (int x = bounds.pMin.x; x <= bounds.pMax.x; x++)
             {
                 Point2i offsetPixel = pixel + Point2i(x,y);
-                float weight = PatchWeight(film, weightSourceBuffer, pixel, offsetPixel, patchRadius, 1);
+                float weight = PatchWeight(film, weightSourceBuffer, pixel, offsetPixel, patchRadius, 0.2);
 
                 Pixel& offsetColor = film->GetPixel(filterBuffer, offsetPixel);
                 for (int i = 0; i < 3; i++) filteredColor[i] += weight * offsetColor.xyz[i] / offsetColor.filterWeightSum;
@@ -51,8 +51,7 @@ namespace pbrt
     {
         //Does not factor in any variance currently
         float distance = PatchDistance(film, buffer, pixel1, pixel2, radius);
-        //float weight = std::exp(distance / dampingFactor);
-        float weight = 1 - distance;
+        float weight = std::exp(- distance / dampingFactor);
         return weight;
     }
 

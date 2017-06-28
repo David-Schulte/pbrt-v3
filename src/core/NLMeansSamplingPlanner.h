@@ -27,6 +27,7 @@ namespace pbrt
         void PlanIterations();
         void PlanMaximalSamplesPerPixel();
         void DualBufferFiltering(Film * film);
+        void EstimateError(Film * film);
         virtual void UpdateSampleMap(Film * film) override;
         virtual void CreateSamplingPlan(Film * film) override;
     };

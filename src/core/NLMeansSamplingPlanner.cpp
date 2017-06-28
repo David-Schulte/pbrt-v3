@@ -16,7 +16,8 @@ namespace pbrt
 
         DualBufferFiltering(film);
 
-        FillMapUniformly(sampleMap, iterationBudgets[currentIteration - 1]);
+        EstimateError(film);
+        //FillMapUniformly(sampleMap, iterationBudgets[currentIteration - 1]);
     }
 
     void NLMeansSamplingPlanner::CreateSamplingPlan(Film *film)
@@ -58,19 +59,66 @@ namespace pbrt
     {
         int minDimension = std::min(film->croppedPixelBounds.pMax.x - film->croppedPixelBounds.pMin.x, 
                                     film->croppedPixelBounds.pMax.y - film->croppedPixelBounds.pMin.y);
-        float filterRadius = std::ceil(std::sqrt(minDimension) / 5);
+        float filterRadius = std::ceil(std::sqrt(minDimension) / 10);
         float patchRadius = std::ceil(filterRadius / 2);
 
         std::vector<std::vector<std::vector<float>>> filteredBuffer0 = filter->Filter(film, 1, 0, filterRadius, patchRadius);
         std::vector<std::vector<std::vector<float>>> filteredBuffer1 = filter->Filter(film, 0, 1, filterRadius, patchRadius);
         
-        for (Point2i pixel : film->croppedPixelBounds)
+        for (Point2i position : film->croppedPixelBounds)
         {
-            Pixel& buffer0Current = film->GetPixel(0, pixel);
-            for (int i = 0; i < 3; i++) buffer0Current.xyz[i] = filteredBuffer0[pixel.x][pixel.y][i] * buffer0Current.filterWeightSum;
+            Pixel& pixel1 = film->GetPixel(0, position);
+            for (int i = 0; i < 3; i++) pixel1.xyz[i] = filteredBuffer0[position.x][position.y][i] * pixel1.filterWeightSum;
         
-            Pixel& buffer1Current = film->GetPixel(1, pixel);
-            for (int i = 0; i < 3; i++) buffer1Current.xyz[i] = filteredBuffer1[pixel.x][pixel.y][i] * buffer1Current.filterWeightSum;
+            Pixel& pixel2 = film->GetPixel(1, position);
+            for (int i = 0; i < 3; i++) pixel2.xyz[i] = filteredBuffer1[position.x][position.y][i] * pixel2.filterWeightSum;
+        }
+    }
+
+    void NLMeansSamplingPlanner::EstimateError(Film * film)
+    {
+        std::vector<std::vector<float>> bufferDifference(film->croppedPixelBounds.pMax.x - film->croppedPixelBounds.pMin.x,
+                                                         std::vector<float>(film->croppedPixelBounds.pMax.y - film->croppedPixelBounds.pMin.y));
+
+        int pixelCounter = 0;
+        float averageDifference = 0;
+        for (Point2i position : film->croppedPixelBounds)
+        {
+            Pixel& pixel1 = film->GetPixel(0, position);
+            Pixel& pixel2 = film->GetPixel(1, position);
+
+            for (int i = 0; i < 3; i++)
+            {
+                float channelDifference = (pixel1.xyz[i] / pixel1.filterWeightSum) - (pixel2.xyz[i] / pixel2.filterWeightSum);
+                channelDifference = std::abs(channelDifference);
+                bufferDifference[position.x][position.y] += channelDifference;
+            }
+            bufferDifference[position.x][position.y] /= 3;
+
+            averageDifference += bufferDifference[position.x][position.y];
+            pixelCounter += 1;
+        }
+        averageDifference /= pixelCounter;
+
+        LOG(INFO) << "average color difference of buffers: " << averageDifference;
+
+        int averageFreePixelBudget = iterationBudgets[currentIteration - 1] - 1;
+        float overflow = 0;
+        for (Point2i position : film->croppedPixelBounds)
+        {
+            float errorWeight = bufferDifference[position.x][position.y] / averageDifference;
+            float proportionalSamplingRate = errorWeight * averageFreePixelBudget;
+            int flooredSamplingRate = std::floor(proportionalSamplingRate);
+
+            overflow += proportionalSamplingRate - flooredSamplingRate;
+            if (overflow >= 1) //Mathematically ensures that the whole sample budget in this iteration is used up exactly. In reality the last sample may be lost due to inaccurities adding up.
+            {
+                flooredSamplingRate += 1;
+                overflow -= 1;
+            }
+
+            //TODO:: A single pixel could potentially eat up all free samples of the whole iteration -> should be limited to a max value (see maxSamplesPerPixel)...
+            sampleMap[position.x][position.y] = flooredSamplingRate + 1; //Use always at least one sample
         }
     }
 
