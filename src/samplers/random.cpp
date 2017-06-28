@@ -72,12 +72,15 @@ void RandomSampler::StartPixel(const Point2i &p) {
 }
 
 Sampler *CreateRandomSampler(const ParamSet &params) {
-    int ns = params.FindOneInt("pixelsamples", 4);
+    int nsamp = params.FindOneInt("pixelsamples", 4);
 
-    RandomSampler *sampler = new RandomSampler(ns);;
+	std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+	if (samplingPlanner != "nonadaptive")
+	{
+		nsamp = params.FindOneInt("maxadaptivesamples", 128);
+	}
 
-    std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
-    if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+    RandomSampler *sampler = new RandomSampler(nsamp);
 
     return sampler;
 }

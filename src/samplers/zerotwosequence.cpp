@@ -77,11 +77,18 @@ std::unique_ptr<Sampler> ZeroTwoSequenceSampler::Clone(int seed) {
 ZeroTwoSequenceSampler *CreateZeroTwoSequenceSampler(const ParamSet &params) {
     int nsamp = params.FindOneInt("pixelsamples", 16);
     int sd = params.FindOneInt("dimensions", 4);
-    if (PbrtOptions.quickRender) nsamp = 1;
+    
+	std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+	if (samplingPlanner != "nonadaptive")
+	{
+		nsamp = params.FindOneInt("maxadaptivesamples", 128);
+	}
+
+	if (PbrtOptions.quickRender) nsamp = 1;
 
     ZeroTwoSequenceSampler *sampler = new ZeroTwoSequenceSampler(nsamp, sd);
 
-    std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+    //std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
     //if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
 
     return sampler;
