@@ -13,7 +13,7 @@ namespace pbrt
 {
 	struct AdaptiveGrid
 	{
-		AdaptiveGrid(int fixedWindowSize = 191) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
+		AdaptiveGrid(int fixedWindowSize = 19) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
 		void refineGrid() { granularity /= 2; /*margin.x /= 2; margin.y /= 2;*/ }
 
 		Point2i margin;
@@ -69,7 +69,7 @@ namespace pbrt
 		bool finalRender;
 		int64_t numberCoveredPixels;
 
-		LinearModel computeLinearModel(int adaptiveWindowSize, std::vector<std::vector<rawPixelData>> rawPixelData, Point2i centerPixel);
+		LinearModel computeLinearModel(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
 		void estimatePredictionError(LinearModel linModel);
 			
 		int64_t getPlannedSampleNumber();		//Debug! Currently test implementation for matrix inverse computation

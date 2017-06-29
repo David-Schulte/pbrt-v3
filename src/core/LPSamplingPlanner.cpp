@@ -66,6 +66,7 @@ namespace pbrt
 				// Compute linear models.
 				for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize; adaptiveWindowSize +=2)
 				{
+					printf("Debug 01\n");
 					LinearModel linModel = computeLinearModel(adaptiveWindowSize, initialRenderFilm, Point2i(row,column));
 					linModels.push_back(linModel);
 				}
@@ -190,15 +191,16 @@ namespace pbrt
 		return 0;
 	}
 
-	Eigen::MatrixXd constructX(int adaptiveWindowSize, std::vector<std::vector<rawPixelData>> rawPixelData, Point2i centerPixel)
+	Eigen::MatrixXd constructX(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
-		Eigen::MatrixXd result;
+		printf("Debug 02\n");
+		Eigen::MatrixXd result(adaptiveWindowSize*adaptiveWindowSize, 2);
 
 		for (int i = 0; i < adaptiveWindowSize*adaptiveWindowSize; i++)
 		{
 			result(i,0) = 1;
 		}
-
+		printf("Debug 02a\n");
 		for (int i = 0; i < adaptiveWindowSize; i++)
 		{
 			for (int j = 0; j < adaptiveWindowSize; j++)
@@ -217,12 +219,15 @@ namespace pbrt
 			}
 		}
 
+		printf("Debug 04\n");
+
 		return result;
 	}
 
-	Eigen::VectorXd constructY(int adaptiveWindowSize, std::vector<std::vector<rawPixelData>> rawPixelData, Point2i centerPixel)
+	Eigen::VectorXd constructY(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
-		Eigen::VectorXd result;
+		printf("Debug 03\n");
+		Eigen::VectorXd result(adaptiveWindowSize*adaptiveWindowSize,1);
 		for (int i = 0; i < adaptiveWindowSize; i++)
 		{
 			for (int j = 0; j < adaptiveWindowSize; j++)
@@ -240,22 +245,40 @@ namespace pbrt
 				//}
 			}
 		}
+		printf("Debug 05\n");
 		return result;
 	}
 
-	LinearModel LPSamplingPlanner::computeLinearModel(int adaptiveWindowSize, std::vector<std::vector<rawPixelData>> rawPixelData, Point2i centerPixel)
+	LinearModel LPSamplingPlanner::computeLinearModel(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
+		printf("Debug 06\n");
 		LinearModel result;
 		result.windowSize = adaptiveWindowSize;
 
 		Eigen::MatrixXd X = constructX(adaptiveWindowSize, rawPixelData, centerPixel);
 		Eigen::VectorXd Y = constructY(adaptiveWindowSize, rawPixelData, centerPixel);
 
+		Eigen::MatrixXd A = X.transpose()*X;
+		Eigen::VectorXd B = X.transpose()*Y;
+
+		std::cout << "X rows dimension: " << X.rows() << std::endl;
+		std::cout << "X cols dimension: " << X.cols() << std::endl;
+		std::cout << "Y rows dimension: " << Y.rows() << std::endl;
+		std::cout << "Y cols dimension: " << Y.cols() << std::endl;
 		// Add error handling here!
-		if (X.transpose().cols() == Y.rows()) 
-		{
-			result.linModelCoeffs = (X.transpose()*X).inverse()*X.transpose()*Y;
-		}
+
+		assert(X.transpose().cols() == Y.rows(), "Matrix-vector multiplication dimension missmatch (Matirix columns not equal vector rows).");
+
+		result.linModelCoeffs = Eigen::VectorXd(adaptiveWindowSize, 1);
+		printf("bla");
+		result.linModelCoeffs = (X.transpose()*X).inverse()*X.transpose()*Y;
+		std::cout << "Normal equation solution:\n" << result.linModelCoeffs << std::endl;
+		std::cout << "Solution rows dimension: " << (A.fullPivLu().solve(B)).rows() << std::endl;
+		std::cout << "Solution columns dimension: " << (A.fullPivLu().solve(B)).cols() << std::endl;
+		result.linModelCoeffs = A.fullPivLu().solve(B);
+		std::cout << "LU decomposition solution:\n" << result.linModelCoeffs << std::endl;
+		
+		printf("Debug 07\n");
 		return result;
 	}
 
