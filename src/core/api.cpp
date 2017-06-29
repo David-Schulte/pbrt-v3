@@ -115,21 +115,6 @@
 #include <map>
 #include <stdio.h>
 
-#include "ext\dlib\matrix.h"
-
-//using namespace dlib;
-
-//static void dlibMatrixTest()
-//{
-//	dlib::matrix<double> M(3, 3);
-//
-//	M = 54.2, 7.4, 12.1,
-//		1, 2, 3,
-//		5.9, 0.05, 1;
-//
-//	std::cout << "Inverse M: \n" << dlib::inv(M) << std::endl;
-//}
-
 namespace pbrt {
 
 // API Global Variables

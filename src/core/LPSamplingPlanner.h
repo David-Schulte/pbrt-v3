@@ -7,15 +7,15 @@
 #define PBRT_CORE_LPSAMPLINGPLANNER_H
 
 #include "SamplingPlanner.h"
-#include "ext\dlib\matrix.h"
 
 namespace pbrt
 {
 	struct AdaptiveGrid
 	{
-		AdaptiveGrid(int fixedWindowSize = 19) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
-		void refineGrid() { granularity /= 2; }
+		AdaptiveGrid(int fixedWindowSize = 191) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
+		void refineGrid() { granularity /= 2; /*margin.x /= 2; margin.y /= 2;*/ }
 
+		Point2i margin;
 		int granularity;
 		int64_t fixedWindowSize;
 	};
@@ -31,6 +31,12 @@ namespace pbrt
 		rawPixelData(Float* _xyz) { xyz[0] = _xyz[0]; xyz[1] = _xyz[1]; xyz[2] = _xyz[2]; }
 		rawPixelData() { xyz[0] = 0; xyz[1] = 0; xyz[2] = 0; }
 		Float xyz[3];
+	};
+
+	struct LinearModel
+	{
+		int k;
+		double errorVal;
 	};
 
 	class LPSamplingPlanner : public SamplingPlanner
@@ -61,7 +67,7 @@ namespace pbrt
 		bool finalRender;
 		int64_t numberCoveredPixels;
 
-		void computeLinearModel();
+		LinearModel computeLinearModel();
 		void estimatePredictionError();
 			
 		int64_t getPlannedSampleNumber();		//Debug! Currently test implementation for matrix inverse computation
