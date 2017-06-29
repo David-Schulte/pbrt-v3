@@ -3,7 +3,6 @@
 #include "LPSamplingPlanner.h"
 #include "film.h"
 #include <array>
-#include <Eigen/Dense>
 
 namespace pbrt
 {
@@ -62,8 +61,16 @@ namespace pbrt
 				}
 				
 				
-
+				std::vector<LinearModel> linModels;
 				//TODO: Compute linear model here and estimate error of model
+				// Compute linear models.
+				for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize; adaptiveWindowSize +=2)
+				{
+					LinearModel linModel = computeLinearModel(adaptiveWindowSize, initialRenderFilm, Point2i(row,column));
+					linModels.push_back(linModel);
+				}
+				
+
 				//Add more samples to Area around the center pixels for test purposes
 				int kOpt = 151;
 				for (int x = row - kOpt / 2; x <= row + kOpt / 2; x++)
@@ -224,14 +231,30 @@ namespace pbrt
 				//{
 				int row = centerPixel.x - adaptiveWindowSize / 2 + i;
 				int column = centerPixel.y - adaptiveWindowSize / 2 + j;
-				result(i*adaptiveWindowSize + j) = (rawPixelData[centerPixel.x][centerPixel.y].xyz[0] - rawPixelData[row][column].xyz[0]
-												+ rawPixelData[centerPixel.x][centerPixel.y].xyz[1] - rawPixelData[row][column].xyz[1]
-												+ rawPixelData[centerPixel.x][centerPixel.y].xyz[2] - rawPixelData[row][column].xyz[2]) / 3.0;
+				result(i*adaptiveWindowSize + j) = (rawPixelData[row][column].xyz[0]
+												+ rawPixelData[row][column].xyz[1]
+												+ rawPixelData[row][column].xyz[2]) / 3.0;
 				// Not sure here!
 				//result(i*adaptiveWindowSize + j, 2) = rawPixelData[centerPixel.x][centerPixel.y].xyz[1] - rawPixelData[i][j].xyz[1];
 				//result(i*adaptiveWindowSize + j, 3) = rawPixelData[centerPixel.x][centerPixel.y].xyz[2] - rawPixelData[i][j].xyz[2];
 				//}
 			}
+		}
+		return result;
+	}
+
+	LinearModel LPSamplingPlanner::computeLinearModel(int adaptiveWindowSize, std::vector<std::vector<rawPixelData>> rawPixelData, Point2i centerPixel)
+	{
+		LinearModel result;
+		result.windowSize = adaptiveWindowSize;
+
+		Eigen::MatrixXd X = constructX(adaptiveWindowSize, rawPixelData, centerPixel);
+		Eigen::VectorXd Y = constructY(adaptiveWindowSize, rawPixelData, centerPixel);
+
+		// Add error handling here!
+		if (X.transpose().cols() == Y.rows()) 
+		{
+			result.linModelCoeffs = (X.transpose()*X).inverse()*X.transpose()*Y;
 		}
 		return result;
 	}

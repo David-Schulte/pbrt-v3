@@ -7,6 +7,7 @@
 #define PBRT_CORE_LPSAMPLINGPLANNER_H
 
 #include "SamplingPlanner.h"
+#include <Eigen/Dense>
 
 namespace pbrt
 {
@@ -35,8 +36,9 @@ namespace pbrt
 
 	struct LinearModel
 	{
-		int k;
-		double errorVal;
+		int windowSize;
+		Eigen::VectorXd linModelCoeffs;
+		double predError;
 	};
 
 	class LPSamplingPlanner : public SamplingPlanner
@@ -67,8 +69,8 @@ namespace pbrt
 		bool finalRender;
 		int64_t numberCoveredPixels;
 
-		LinearModel computeLinearModel();
-		void estimatePredictionError();
+		LinearModel computeLinearModel(int adaptiveWindowSize, std::vector<std::vector<rawPixelData>> rawPixelData, Point2i centerPixel);
+		void estimatePredictionError(LinearModel linModel);
 			
 		int64_t getPlannedSampleNumber();		//Debug! Currently test implementation for matrix inverse computation
 		virtual void copyInitialRenderFilm(Film* film);
