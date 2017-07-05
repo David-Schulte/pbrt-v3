@@ -6,10 +6,23 @@
 
 namespace pbrt
 {
+	void testMatrixInv();
+	void testLUFactorization();
+
 	void LPSamplingPlanner::UpdateSamplingPlan(Film *film, const int64_t adaptiveSamplesCount)
 	{
 		static int itCounter = 0;
-		
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// DEBUG!
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		if (firstIteration)
+		{
+			testMatrixInv();
+			testLUFactorization();
+		}
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 		if (firstIteration) //plannedSampleMap is initialized with initialRenderSamplesPerPixels in SamplingPlanner::CreateSampleMap -> we dont have to do anything here for the initial render pass
 			return;			//firstIteration is set to false in SamplingPlanner::StartNextIteration
 
@@ -63,10 +76,10 @@ namespace pbrt
 				
 				std::vector<LinearModel> linModels;
 				//TODO: Compute linear model here and estimate error of model
+				//TODO (probably): Imlement k(r) reparametrization as in the paper. 
 				// Compute linear models.
 				for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize; adaptiveWindowSize +=2)
 				{
-					printf("Debug 01\n");
 					LinearModel linModel = computeLinearModel(adaptiveWindowSize, initialRenderFilm, Point2i(row,column));
 					linModels.push_back(linModel);
 				}
@@ -191,16 +204,15 @@ namespace pbrt
 		return 0;
 	}
 
+	// Change from XYZ to RGB later.
 	Eigen::MatrixXd constructX(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
-		printf("Debug 02\n");
 		Eigen::MatrixXd result(adaptiveWindowSize*adaptiveWindowSize, 2);
 
 		for (int i = 0; i < adaptiveWindowSize*adaptiveWindowSize; i++)
 		{
 			result(i,0) = 1;
 		}
-		printf("Debug 02a\n");
 		for (int i = 0; i < adaptiveWindowSize; i++)
 		{
 			for (int j = 0; j < adaptiveWindowSize; j++)
@@ -219,14 +231,13 @@ namespace pbrt
 			}
 		}
 
-		printf("Debug 04\n");
-
 		return result;
 	}
 
+	// Result will be a column/row (?) vector
+	// Change from XYZ to RGB later.
 	Eigen::VectorXd constructY(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
-		printf("Debug 03\n");
 		Eigen::VectorXd result(adaptiveWindowSize*adaptiveWindowSize,1);
 		for (int i = 0; i < adaptiveWindowSize; i++)
 		{
@@ -245,18 +256,157 @@ namespace pbrt
 				//}
 			}
 		}
-		printf("Debug 05\n");
 		return result;
 	}
 
 	LinearModel LPSamplingPlanner::computeLinearModel(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
-		printf("Debug 06\n");
 		LinearModel result;
+		result.center = centerPixel;
 		result.windowSize = adaptiveWindowSize;
 
 		Eigen::MatrixXd X = constructX(adaptiveWindowSize, rawPixelData, centerPixel);
 		Eigen::VectorXd Y = constructY(adaptiveWindowSize, rawPixelData, centerPixel);
+
+		Eigen::MatrixXd A = X.transpose()*X;
+		Eigen::VectorXd B = X.transpose()*Y;
+
+		assert(X.transpose().cols() == Y.rows(), "Matrix-vector multiplication dimension missmatch (Matirix columns not equal to vector rows).");
+
+		result.linModelCoeffs = Eigen::VectorXd(adaptiveWindowSize, Y.cols());
+		result.linModelCoeffs = A.fullPivLu().solve(B);
+		
+		return result;
+	}
+
+	// TODO: 1. Think precisely about computation of the prediction error, in terms of recursion or iteratio, so the result is correct.
+	//			Also try to avoid computing X and Y, which were already computed in computeLinearModel.
+	//			Also try to compute prediction error right after computing a linear model, to implement the idea of updating the prediction error 
+	//			recursively/iteratively, according to paper.
+	//		 2. Consider using k(r) reparametrization (see TODO somewhere above).
+	//       3. Testing for correctness.
+	void LPSamplingPlanner::estimatePredictionError(LinearModel linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData)
+	{
+		std::vector<Float> linModelErrors;
+
+		// Avoid computing this twice later (already computed once in 'computeLinearModel').
+		Eigen::MatrixXd X;// = constructX(linModel.windowSize, rawPixelData, linModel.center);
+		Eigen::MatrixXd XT;
+		Eigen::VectorXd Y;// = constructY(linModel.windowSize, rawPixelData, linModel.center);
+
+		Float linModelError;
+
+		//  If first prediction error.
+		if (linModel.windowSize == 1)
+		{
+			X = constructX(1, rawPixelData, linModel.center);
+			Y = constructY(1, rawPixelData, linModel.center);
+			linModelError = linModel.linModelCoeffs(1, 1)*X(1, 1) + linModel.linModelCoeffs(1, 2)*X(1, 2);
+		}
+		//  If second prediction error.
+		Float tmpLinModelError = 0;
+		if (linModel.windowSize == 3)
+		{
+			X = constructX(3, rawPixelData, linModel.center);
+			XT = X.transpose();
+			Y = constructY(3, rawPixelData, linModel.center);
+			Eigen::MatrixXd P = (X.transpose()*X).inverse();
+			for (int i = 1; i < 9; i++)
+			{
+				tmpLinModelError += ((linModel.linModelCoeffs(i, 1)*X(i, 1) + linModel.linModelCoeffs(i, 2)*X(i, 2)) - Y(i))/(1-(XT.row(i).transpose()*P*XT.row(i))(1,1));
+			}
+			linModelError = tmpLinModelError;
+		}
+		// If remaining nth prediction errors
+		if (linModel.windowSize > 3)
+		{
+			//TODO
+			linModelError = tmpLinModelError;
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Values for Eigen testing.
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	double testM[] = { -34.7622, -23.6197, 40.2716, -14.6841, 42.9386, 8.7045, -24.1935, 7.8525, -16.4643, 10.9867, 2.1650, 30.3364, -44.7323, 6.1200, -24.8194, -32.1234, -39.4371, 17.1808, -17.7528,
+		32.5817, -35.4461, 44.4787, 32.1194, 27.5713, -29.2258, -9.1280, -26.2716, 17.9728, 11.7666, -40.3270, -43.9529, 23.7858, 38.1867, -20.9559, -7.7114, 11.0959, 19.5140, 28.4739,
+		3.8342, -36.3931, -0.9136, -48.4597, -1.3208, -19.8754, 9.4896, -4.1151, -36.3447, 35.9442, 31.8149, -10.0742, -23.0881, 16.9175, 11.7091, -40.5771, 27.8802, -43.2007, -2.8643,
+		49.6135, 36.9292, -1.0747, -45.6976, -6.4141, -2.9077, -23.7788, 46.3089, 22.1227, 30.5489, 31.7547, 2.6876, -7.7164, -30.9567, -23.4719, 9.8524, -7.6547, -24.5210, -46.4237,
+		-42.1824, 7.9705, -16.2281, -33.1010, -5.3216, -26.9512, 10.2843, 4.6806, -39.3238, 7.6722, 22.2440, -8.3201, 4.7871, -13.1083, 32.4376, -2.9076, -40.9177, -27.5960, -32.4126,
+		-5.7322, 4.9860, 40.0054, 14.9115, -19.3651, 34.4309, 21.1216, 2.1136, 15.3757, -31.7078, -35.0135, 15.6860, 44.2737, -3.9274, 48.2663, 19.5949, -23.3529, 16.7833, 22.1758,
+		-39.3347, -35.5045, -13.0753, 23.1722, 0.8509, -30.5236, -27.8253, -26.8406, -0.5826, -26.0068, 15.9605, 12.7973, -8.2256, 48.1638, 23.0249, 19.9888, -34.6343, 34.4392, -2.6514,
+		46.1898, 35.3031, -38.8797, 14.7746, 1.0772, -27.4078, -38.2582, -1.1102, 27.9052, 38.6512, 1.8595, -20.8016, 48.3052, -34.3595, -15.6123, 13.8531, -21.8995, -15.5538, -34.7279,
+		-49.5366, 12.2055, 28.0252, -4.9076, 31.7628, -32.9292, -20.3324, 12.4060, 21.5037, -47.1326, 47.2975, -6.8349, -19.8545, 35.5523, 8.4069, -46.6396, -5.9915, 28.0520, -15.8875,
+		27.4910, -14.9048, -11.0261, 4.7009, 29.4831, -27.2336, -18.1222, 17.9136, 40.3721, -1.0099, 14.8991, -48.4513, 20.1099, 14.4765, -39.2231, -43.1194, 2.7143, 17.5332, 10.7389,
+		31.7303, 1.3250, -25.8309, -20.3679, 14.4318, -6.4301, -7.5833, -10.4485, 39.0923, -33.2073, 30.0331, 48.4064, 16.6339, -12.3728, 40.6308, -18.0400, -4.2576, -49.3285, -30.8255,
+		36.8695, -9.8192, -9.6088, 24.4693, -12.1391, -18.8898, 0.7858, -13.2563, -16.5837, 47.8681, -4.6202, -33.2832, 3.9126, -30.9076, 37.9654, 3.0864, 37.5372, 10.2170, 23.8427,
+		-41.5564, -42.4033, -40.3545, -31.1045, 31.1580, 42.3380, -41.4484, 48.7982, 19.8746, 21.2694, -6.7608, -39.3784, 19.8106, -7.1747, 31.7761, 15.4446, 1.8052, -11.3229, -25.7150,
+		-10.0217, -26.0084, -36.8027, 18.6775, 3.2826, -6.9793, -23.7518, -46.2261, -30.2190, 0.0472, 32.5314, -12.7590, 16.6528, -1.7978, -23.9272, -9.2381, 44.3623, 41.5991, 41.7424,
+		-24.0130, -37.6681, 44.2051, -31.6489, -14.9273, -31.5184, 30.1015, 38.5168, -46.9459, -2.8912, -41.6530, -30.1882, -32.1868, -37.9388, 9.4356, 31.9981, 13.7709, -49.8849, -23.0938,
+		30.0068, -31.6092, 45.6135, -13.1515, 43.9002, 40.4881, -47.0780, 41.3287, 24.4074, -44.0381, -36.6829, -1.0312, -37.1986, 8.9507, -47.7487, 21.8359, 45.7694, -3.7551, 26.5500,
+		-6.8586, -26.0047, 7.5209, 12.5619, 37.5943, 47.9748, 42.8854, 29.6184, 0.0022, 18.1972, -32.6611, -16.0507, 49.9080, -27.3812, -7.4741, 46.8649, -25.9293, -7.5651, -31.1338,
+		41.0648, -8.2733, -44.0220, 28.0227, 5.0156, -6.1130, 23.0331, -40.1288, -2.0078, -45.7569, -10.9062, 45.1630, -32.8879, -11.5381, -18.7281, 3.1334, 17.6122, -3.9084, -21.2502,
+		-31.8153, -45.0346, -26.5220, -41.8874, 12.2475, -38.8881, -1.1391, -23.8129, 40.4722, -42.8555, 33.1380, 42.0332, -46.7399, 8.2986, -33.8515, -17.4854, -21.0935, 27.0160, -40.8887 };
+
+	double testV[] = { 47.9746,
+						32.7870,
+						1.7856,
+						42.4565,
+						46.6997,
+						33.9368,
+						37.8870,
+						37.1566,
+						19.6114,
+						32.7739,
+						8.5593,
+						35.3023,
+						1.5916,
+						13.8461,
+						2.3086,
+						4.8566,
+						41.1729,
+						34.7414,
+						15.8550 };
+
+	void testMatrixInv() 
+	{
+		Eigen::MatrixXd m(19, 19);
+
+		for (int i = 0; i < 19; i++)
+		{
+			for (int j = 0; j < 19; j++)
+			{
+				m(i, j) = (double)testM[i * 19 + j];
+			}
+		}
+		std::cout << "\nM: \n" << m << std::endl;
+		std::cout << "Inverse M: \n" << m.inverse() << std::endl;
+	}
+
+	void testLUFactorization() 
+	{
+		Eigen::MatrixXd X(19, 19);
+
+		for (int i = 0; i < 19; i++)
+		{
+			for (int j = 0; j < 19; j++)
+			{
+				X(i, j) = (double)testM[i * 19 + j];
+			}
+		}
+
+		std::cout << "\nX: \n" << X << std::endl;
+
+		Eigen::VectorXd result;
+
+		Eigen::VectorXd Y(19,1);
+
+		for (int i = 0; i < 19; i++)
+		{
+			Y(i, 1) = testV[i];
+		}
+
+		std::cout << "\nY: \n" << Y << std::endl;
 
 		Eigen::MatrixXd A = X.transpose()*X;
 		Eigen::VectorXd B = X.transpose()*Y;
@@ -267,53 +417,14 @@ namespace pbrt
 		std::cout << "Y cols dimension: " << Y.cols() << std::endl;
 		// Add error handling here!
 
-		assert(X.transpose().cols() == Y.rows(), "Matrix-vector multiplication dimension missmatch (Matirix columns not equal vector rows).");
+		assert(X.transpose().cols() == Y.rows(), "Matrix-vector multiplication dimension missmatch (Matirix columns not equal to vector rows).");
 
-		result.linModelCoeffs = Eigen::VectorXd(adaptiveWindowSize, 1);
-		printf("bla");
-		result.linModelCoeffs = (X.transpose()*X).inverse()*X.transpose()*Y;
-		std::cout << "Normal equation solution:\n" << result.linModelCoeffs << std::endl;
-		std::cout << "Solution rows dimension: " << (A.fullPivLu().solve(B)).rows() << std::endl;
-		std::cout << "Solution columns dimension: " << (A.fullPivLu().solve(B)).cols() << std::endl;
-		result.linModelCoeffs = A.fullPivLu().solve(B);
-		std::cout << "LU decomposition solution:\n" << result.linModelCoeffs << std::endl;
-		
-		printf("Debug 07\n");
-		return result;
-	}
-
-	void testMatrix() 
-	{
-		Eigen::MatrixXd m(19, 19);
-
-		double test[] = { -34.7622, -23.6197, 40.2716, -14.6841, 42.9386, 8.7045, -24.1935, 7.8525, -16.4643, 10.9867, 2.1650, 30.3364, -44.7323, 6.1200, -24.8194, -32.1234, -39.4371, 17.1808, -17.7528,
-			32.5817, -35.4461, 44.4787, 32.1194, 27.5713, -29.2258, -9.1280, -26.2716, 17.9728, 11.7666, -40.3270, -43.9529, 23.7858, 38.1867, -20.9559, -7.7114, 11.0959, 19.5140, 28.4739,
-			3.8342, -36.3931, -0.9136, -48.4597, -1.3208, -19.8754, 9.4896, -4.1151, -36.3447, 35.9442, 31.8149, -10.0742, -23.0881, 16.9175, 11.7091, -40.5771, 27.8802, -43.2007, -2.8643,
-			49.6135, 36.9292, -1.0747, -45.6976, -6.4141, -2.9077, -23.7788, 46.3089, 22.1227, 30.5489, 31.7547, 2.6876, -7.7164, -30.9567, -23.4719, 9.8524, -7.6547, -24.5210, -46.4237,
-			-42.1824, 7.9705, -16.2281, -33.1010, -5.3216, -26.9512, 10.2843, 4.6806, -39.3238, 7.6722, 22.2440, -8.3201, 4.7871, -13.1083, 32.4376, -2.9076, -40.9177, -27.5960, -32.4126,
-			-5.7322, 4.9860, 40.0054, 14.9115, -19.3651, 34.4309, 21.1216, 2.1136, 15.3757, -31.7078, -35.0135, 15.6860, 44.2737, -3.9274, 48.2663, 19.5949, -23.3529, 16.7833, 22.1758,
-			-39.3347, -35.5045, -13.0753, 23.1722, 0.8509, -30.5236, -27.8253, -26.8406, -0.5826, -26.0068, 15.9605, 12.7973, -8.2256, 48.1638, 23.0249, 19.9888, -34.6343, 34.4392, -2.6514,
-			46.1898, 35.3031, -38.8797, 14.7746, 1.0772, -27.4078, -38.2582, -1.1102, 27.9052, 38.6512, 1.8595, -20.8016, 48.3052, -34.3595, -15.6123, 13.8531, -21.8995, -15.5538, -34.7279,
-			-49.5366, 12.2055, 28.0252, -4.9076, 31.7628, -32.9292, -20.3324, 12.4060, 21.5037, -47.1326, 47.2975, -6.8349, -19.8545, 35.5523, 8.4069, -46.6396, -5.9915, 28.0520, -15.8875,
-			27.4910, -14.9048, -11.0261, 4.7009, 29.4831, -27.2336, -18.1222, 17.9136, 40.3721, -1.0099, 14.8991, -48.4513, 20.1099, 14.4765, -39.2231, -43.1194, 2.7143, 17.5332, 10.7389,
-			31.7303, 1.3250, -25.8309, -20.3679, 14.4318, -6.4301, -7.5833, -10.4485, 39.0923, -33.2073, 30.0331, 48.4064, 16.6339, -12.3728, 40.6308, -18.0400, -4.2576, -49.3285, -30.8255,
-			36.8695, -9.8192, -9.6088, 24.4693, -12.1391, -18.8898, 0.7858, -13.2563, -16.5837, 47.8681, -4.6202, -33.2832, 3.9126, -30.9076, 37.9654, 3.0864, 37.5372, 10.2170, 23.8427,
-			-41.5564, -42.4033, -40.3545, -31.1045, 31.1580, 42.3380, -41.4484, 48.7982, 19.8746, 21.2694, -6.7608, -39.3784, 19.8106, -7.1747, 31.7761, 15.4446, 1.8052, -11.3229, -25.7150,
-			-10.0217, -26.0084, -36.8027, 18.6775, 3.2826, -6.9793, -23.7518, -46.2261, -30.2190, 0.0472, 32.5314, -12.7590, 16.6528, -1.7978, -23.9272, -9.2381, 44.3623, 41.5991, 41.7424,
-			-24.0130, -37.6681, 44.2051, -31.6489, -14.9273, -31.5184, 30.1015, 38.5168, -46.9459, -2.8912, -41.6530, -30.1882, -32.1868, -37.9388, 9.4356, 31.9981, 13.7709, -49.8849, -23.0938,
-			30.0068, -31.6092, 45.6135, -13.1515, 43.9002, 40.4881, -47.0780, 41.3287, 24.4074, -44.0381, -36.6829, -1.0312, -37.1986, 8.9507, -47.7487, 21.8359, 45.7694, -3.7551, 26.5500,
-			-6.8586, -26.0047, 7.5209, 12.5619, 37.5943, 47.9748, 42.8854, 29.6184, 0.0022, 18.1972, -32.6611, -16.0507, 49.9080, -27.3812, -7.4741, 46.8649, -25.9293, -7.5651, -31.1338,
-			41.0648, -8.2733, -44.0220, 28.0227, 5.0156, -6.1130, 23.0331, -40.1288, -2.0078, -45.7569, -10.9062, 45.1630, -32.8879, -11.5381, -18.7281, 3.1334, 17.6122, -3.9084, -21.2502,
-			-31.8153, -45.0346, -26.5220, -41.8874, 12.2475, -38.8881, -1.1391, -23.8129, 40.4722, -42.8555, 33.1380, 42.0332, -46.7399, 8.2986, -33.8515, -17.4854, -21.0935, 27.0160, -40.8887 };
-
-		for (int i = 0; i < 19; i++)
-		{
-			for (int j = 0; j < 19; j++)
-			{
-				m(i, j) = (double)test[i * 19 + j];
-			}
-		}
-		std::cout << "M: \n" << m << std::endl;
-		std::cout << "Inverse M: \n" << m.inverse() << std::endl;
+		result = Eigen::VectorXd(19, 1);
+		result = (X.transpose()*X).inverse()*X.transpose()*Y;
+		std::cout << "\nNormal equation solution:\n" << result << std::endl;
+		std::cout << "\nSolution rows dimension: " << (A.fullPivLu().solve(B)).rows() << std::endl;
+		std::cout << "\nSolution columns dimension: " << (A.fullPivLu().solve(B)).cols() << std::endl;
+		result = A.fullPivLu().solve(B);
+		std::cout << "\nLU decomposition solution:\n" << result << std::endl;
 	}
 }

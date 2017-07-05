@@ -36,6 +36,7 @@ namespace pbrt
 
 	struct LinearModel
 	{
+		Point2i center;
 		int windowSize;
 		Eigen::VectorXd linModelCoeffs;
 		double predError;
@@ -70,7 +71,7 @@ namespace pbrt
 		int64_t numberCoveredPixels;
 
 		LinearModel computeLinearModel(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
-		void estimatePredictionError(LinearModel linModel);
+		void estimatePredictionError(LinearModel linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData);
 			
 		int64_t getPlannedSampleNumber();		//Debug! Currently test implementation for matrix inverse computation
 		virtual void copyInitialRenderFilm(Film* film);
