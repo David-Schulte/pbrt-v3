@@ -62,6 +62,8 @@ namespace pbrt
 		
 
 	private:
+		const int adaptiveSampleStepSize = 4;
+
 		AdaptiveGrid grid;
 		std::vector<std::vector<vector_bool>> coverageMask;
 		std::vector<std::vector<rawPixelData>> initialRenderFilm;
@@ -70,9 +72,10 @@ namespace pbrt
 		bool finalRender;
 		int64_t numberCoveredPixels;
 
-		LinearModel computeLinearModel(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
-		void estimatePredictionError(LinearModel linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData);
-			
+		LinearModel computeLinearModelAndPredictionError(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
+		void updatePredictionErrorEstimate(LinearModel &linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd X, Eigen::MatrixXd Y);
+		
+		int findMinErrorLinModelIdx(std::vector<LinearModel> linModels);
 		int64_t getPlannedSampleNumber();		//Debug! Currently test implementation for matrix inverse computation
 		virtual void copyInitialRenderFilm(Film* film);
 		virtual Point2i computeMargin(Film* film);

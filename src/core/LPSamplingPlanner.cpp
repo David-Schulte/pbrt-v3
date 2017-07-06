@@ -16,11 +16,11 @@ namespace pbrt
 		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		// DEBUG!
 		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		if (firstIteration)
-		{
-			testMatrixInv();
-			testLUFactorization();
-		}
+		//if (firstIteration)
+		//{
+			//testMatrixInv();
+			//testLUFactorization();
+		//}
 		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 		if (firstIteration) //plannedSampleMap is initialized with initialRenderSamplesPerPixels in SamplingPlanner::CreateSampleMap -> we dont have to do anything here for the initial render pass
@@ -78,15 +78,16 @@ namespace pbrt
 				//TODO: Compute linear model here and estimate error of model
 				//TODO (probably): Imlement k(r) reparametrization as in the paper. 
 				// Compute linear models.
-				for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize; adaptiveWindowSize +=2)
+				for (int adaptiveWindowSize = 1; adaptiveWindowSize < grid.fixedWindowSize; adaptiveWindowSize +=2)
 				{
-					LinearModel linModel = computeLinearModel(adaptiveWindowSize, initialRenderFilm, Point2i(row,column));
+					LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(row,column));
 					linModels.push_back(linModel);
 				}
 				
+				int minErrorLinModelIdx = findMinErrorLinModelIdx(linModels);
 
 				//Add more samples to Area around the center pixels for test purposes
-				int kOpt = 151;
+				int kOpt = linModels[minErrorLinModelIdx].windowSize;
 				for (int x = row - kOpt / 2; x <= row + kOpt / 2; x++)
 				{
 					for (int y = column - kOpt / 2; y <= column + kOpt / 2; y++)
@@ -205,7 +206,7 @@ namespace pbrt
 	}
 
 	// Change from XYZ to RGB later.
-	Eigen::MatrixXd constructX(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
+	Eigen::MatrixXd constructXc(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
 		Eigen::MatrixXd result(adaptiveWindowSize*adaptiveWindowSize, 2);
 
@@ -236,7 +237,7 @@ namespace pbrt
 
 	// Result will be a column/row (?) vector
 	// Change from XYZ to RGB later.
-	Eigen::VectorXd constructY(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
+	Eigen::VectorXd constructYc(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
 		Eigen::VectorXd result(adaptiveWindowSize*adaptiveWindowSize,1);
 		for (int i = 0; i < adaptiveWindowSize; i++)
@@ -259,14 +260,14 @@ namespace pbrt
 		return result;
 	}
 
-	LinearModel LPSamplingPlanner::computeLinearModel(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
+	LinearModel LPSamplingPlanner::computeLinearModelAndPredictionError(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
 		LinearModel result;
 		result.center = centerPixel;
 		result.windowSize = adaptiveWindowSize;
 
-		Eigen::MatrixXd X = constructX(adaptiveWindowSize, rawPixelData, centerPixel);
-		Eigen::VectorXd Y = constructY(adaptiveWindowSize, rawPixelData, centerPixel);
+		Eigen::MatrixXd X = constructXc(adaptiveWindowSize, rawPixelData, centerPixel);
+		Eigen::VectorXd Y = constructYc(adaptiveWindowSize, rawPixelData, centerPixel);
 
 		Eigen::MatrixXd A = X.transpose()*X;
 		Eigen::VectorXd B = X.transpose()*Y;
@@ -276,6 +277,9 @@ namespace pbrt
 		result.linModelCoeffs = Eigen::VectorXd(adaptiveWindowSize, Y.cols());
 		result.linModelCoeffs = A.fullPivLu().solve(B);
 		
+		// Update prediction error of the linear model here.
+		updatePredictionErrorEstimate(result, rawPixelData, X, Y);
+
 		return result;
 	}
 
@@ -285,44 +289,85 @@ namespace pbrt
 	//			recursively/iteratively, according to paper.
 	//		 2. Consider using k(r) reparametrization (see TODO somewhere above).
 	//       3. Testing for correctness.
-	void LPSamplingPlanner::estimatePredictionError(LinearModel linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData)
+	void LPSamplingPlanner::updatePredictionErrorEstimate(LinearModel &linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd Xc, Eigen::MatrixXd Yc)
 	{
 		std::vector<Float> linModelErrors;
 
 		// Avoid computing this twice later (already computed once in 'computeLinearModel').
-		Eigen::MatrixXd X;// = constructX(linModel.windowSize, rawPixelData, linModel.center);
-		Eigen::MatrixXd XT;
-		Eigen::VectorXd Y;// = constructY(linModel.windowSize, rawPixelData, linModel.center);
+		//Eigen::MatrixXd X;// = constructX(linModel.windowSize, rawPixelData, linModel.center);
+		Eigen::MatrixXd XcT;
+		//Eigen::VectorXd Y;// = constructY(linModel.windowSize, rawPixelData, linModel.center);
 
 		Float linModelError;
+		Float newLinModelError;
 
+		int windowSize = linModel.windowSize;
+
+		assert((windowSize % 2) != 0, "Linear model window size must be 1,3,5,...(2r+1)");
 		//  If first prediction error.
-		if (linModel.windowSize == 1)
+		if (windowSize == 1)
 		{
-			X = constructX(1, rawPixelData, linModel.center);
-			Y = constructY(1, rawPixelData, linModel.center);
-			linModelError = linModel.linModelCoeffs(1, 1)*X(1, 1) + linModel.linModelCoeffs(1, 2)*X(1, 2);
-		}
+			linModelError = linModel.linModelCoeffs(1, 1)*Xc(1, 1) + linModel.linModelCoeffs(1, 2)*Xc(1, 2);
+		} else
 		//  If second prediction error.
-		Float tmpLinModelError = 0;
-		if (linModel.windowSize == 3)
+		if (windowSize == 3)
 		{
-			X = constructX(3, rawPixelData, linModel.center);
-			XT = X.transpose();
-			Y = constructY(3, rawPixelData, linModel.center);
-			Eigen::MatrixXd P = (X.transpose()*X).inverse();
-			for (int i = 1; i < 9; i++)
+			XcT = Xc.transpose();
+			Eigen::MatrixXd Pc = (Xc.transpose()*Xc).inverse();
+			for (int i = 0; i < 9; i++)
 			{
-				tmpLinModelError += ((linModel.linModelCoeffs(i, 1)*X(i, 1) + linModel.linModelCoeffs(i, 2)*X(i, 2)) - Y(i))/(1-(XT.row(i).transpose()*P*XT.row(i))(1,1));
+				newLinModelError = ((linModel.linModelCoeffs.row(i)*Xc.row(i).transpose())(1, 1) - Yc(i))/(1-(XcT.row(i).transpose()*Pc*XcT.row(i))(1,1));
+				newLinModelError *= newLinModelError;
 			}
-			linModelError = tmpLinModelError;
-		}
+			linModelError = newLinModelError;
+		} else
 		// If remaining nth prediction errors
-		if (linModel.windowSize > 3)
+		if (windowSize > 3)
 		{
-			//TODO
-			linModelError = tmpLinModelError;
+			XcT = Xc.transpose();
+			linModelError = linModel.predError;
+			int outerRingLength = windowSize * 8;
+			
+			for (int i = 0; i < (windowSize * windowSize - 1); i++)
+			{
+				if (i < windowSize || i % windowSize == 0 || i % windowSize == windowSize - 1 || i >= (windowSize * windowSize - 1) - windowSize)
+				{
+					Float tmpLinModelError = (linModel.linModelCoeffs.row(i)*Xc.row(i).transpose())(1, 1) - Yc(i);
+					newLinModelError += (tmpLinModelError*tmpLinModelError);
+				}
+				else
+					continue;
+			}
+			linModelError += newLinModelError;
+			linModelError /= (Float)((2 * outerRingLength + 1) * (2 * outerRingLength + 1));
 		}
+		linModel.predError = linModelError;
+
+		//printf("\n//////////////////////////////////////////////////////////////////////////////\n");
+		//printf("Linear model window size: %d\n", windowSize);
+		//printf("Linear model prediction error: %f\n", linModel.predError);
+		//printf("//////////////////////////////////////////////////////////////////////////////\n");
+	}
+
+	int LPSamplingPlanner::findMinErrorLinModelIdx(std::vector<LinearModel> linModels)
+	{
+		Float minLinModelError = std::numeric_limits<Float>::max();
+		int minLinModelErrorIdx = 0;
+		Float minErrorThreshold = 0.0000001;
+		for (int i = 0; i < linModels.size(); i++)
+		{
+			if (linModels[i].predError < minLinModelError && linModels[i].predError > minErrorThreshold)
+			{
+				minLinModelError = linModels[i].predError;
+				minLinModelErrorIdx = i;
+			}
+		}
+
+		printf("\n//////////////////////////////////////////////////////////////////////////////\n");
+		printf("Min error linear model window size: %d\n", linModels[minLinModelErrorIdx].windowSize);
+		printf("//////////////////////////////////////////////////////////////////////////////\n");
+
+		return minLinModelErrorIdx;
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
