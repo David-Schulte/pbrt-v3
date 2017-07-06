@@ -20,6 +20,9 @@ namespace pbrt
 		//{
 			//testMatrixInv();
 			//testLUFactorization();
+			//printf("\ninputFilm size: [%d, %d]\n", film->fullResolution.x, film->fullResolution.y);
+			//printf("\nCoverageMask size: [%d, %d]\n", coverageMask[0].size(), coverageMask.size());
+			//printf("\nSampleMap size: [%d, %d]\n", plannedSampleMap[0].size(), plannedSampleMap.size());
 		//}
 		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -34,6 +37,8 @@ namespace pbrt
 			copyInitialRenderFilm(film);
 			initialRenderFilmReady = true;
 
+			//printf("\ninitialRenderFilm size: [%d, %d]\n", initialRenderFilm[0].size(), initialRenderFilm.size());
+
 			//init temporary plannedSampleMap
 			Bounds2i sampleBounds = film->GetSampleBounds();
 			Vector2i sampleExtent = sampleBounds.Diagonal();
@@ -41,8 +46,8 @@ namespace pbrt
 			temp_plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y, 0));
 
 			//get center pixels
-			//grid.margin = computeMargin(film);
-			printf("margin: %d %d \n", grid.margin.x, grid.margin.y);
+			grid.margin = computeMargin(film);
+			//printf("margin: %d %d \n", grid.margin.x, grid.margin.y);
 		}
 		itCounter++;
 		
@@ -61,7 +66,7 @@ namespace pbrt
 			return;
 		}
 
-		grid.margin = computeMargin(film);
+		//grid.margin = computeMargin(film);
 		for (int row = (grid.granularity / 2)+2+ grid.margin.x; row < plannedSampleMap.size()-2; row += grid.granularity)
 		{
 			for (int column = (grid.granularity / 2)+2+ grid.margin.y; column < plannedSampleMap[0].size()-2; column += grid.granularity)
@@ -73,25 +78,30 @@ namespace pbrt
 					continue;
 				}
 				
-				
-				std::vector<LinearModel> linModels;
-				//TODO: Compute linear model here and estimate error of model
-				//TODO (probably): Imlement k(r) reparametrization as in the paper. 
-				// Compute linear models.
-				for (int adaptiveWindowSize = 1; adaptiveWindowSize < grid.fixedWindowSize; adaptiveWindowSize +=2)
-				{
-					LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(row,column));
-					linModels.push_back(linModel);
-				}
-				
-				int minErrorLinModelIdx = findMinErrorLinModelIdx(linModels);
-
 				//Add more samples to Area around the center pixels for test purposes
-				int kOpt = linModels[minErrorLinModelIdx].windowSize;
+				int kOpt = grid.fixedWindowSize;
+
+				//for pixels that are part of the image but the kOpt window reaches over the border -> add coverage but dont add additional samples
+				if (!(row - grid.fixedWindowSize / 2 < 2 || row + grid.fixedWindowSize / 2 > plannedSampleMap.size() - 3 || column - grid.fixedWindowSize / 2 < 2 || column + grid.fixedWindowSize / 2 > plannedSampleMap[0].size() - 3))
+				{
+					std::vector<LinearModel> linModels;
+					//TODO: Compute linear model here and estimate error of model
+					//TODO (probably): Imlement k(r) reparametrization as in the paper. 
+					// Compute linear models.
+					for (int adaptiveWindowSize = 1; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
+					{
+						LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2));
+						linModels.push_back(linModel);
+					}
+					int minErrorLinModelIdx = findMinErrorLinModelIdx(linModels);
+				}
+
 				for (int x = row - kOpt / 2; x <= row + kOpt / 2; x++)
 				{
 					for (int y = column - kOpt / 2; y <= column + kOpt / 2; y++)
 					{
+						//printf("\nCenter pixel: [%d,%d]\n", row, column);
+						//printf("Current pixel to render with adaptive samples: [%d,%d]\n\n", x, y);
 						//printf("Current pixel in kOpt window: % d %d \n .", x-2, y-2);
 						if (x < 2 || x > plannedSampleMap.size() - 1 - 2 || y < 2 || y > plannedSampleMap[0].size() - 1 - 2)
 						{
@@ -174,6 +184,7 @@ namespace pbrt
 	{
 		rawPixelData initValues = rawPixelData();
 		initialRenderFilm = std::vector<std::vector<rawPixelData>>(film->fullResolution.x, std::vector<rawPixelData>(film->fullResolution.y, initValues));
+
 		for (int row = 0; row < film->fullResolution.x; row++)
 		{
 			for (int column = 0; column < film->fullResolution.y; column++)
@@ -263,6 +274,7 @@ namespace pbrt
 	LinearModel LPSamplingPlanner::computeLinearModelAndPredictionError(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
 		LinearModel result;
+
 		result.center = centerPixel;
 		result.windowSize = adaptiveWindowSize;
 
@@ -283,20 +295,11 @@ namespace pbrt
 		return result;
 	}
 
-	// TODO: 1. Think precisely about computation of the prediction error, in terms of recursion or iteratio, so the result is correct.
-	//			Also try to avoid computing X and Y, which were already computed in computeLinearModel.
-	//			Also try to compute prediction error right after computing a linear model, to implement the idea of updating the prediction error 
-	//			recursively/iteratively, according to paper.
-	//		 2. Consider using k(r) reparametrization (see TODO somewhere above).
-	//       3. Testing for correctness.
+	// TODO: 1. Testing for correctness.
 	void LPSamplingPlanner::updatePredictionErrorEstimate(LinearModel &linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd Xc, Eigen::MatrixXd Yc)
 	{
 		std::vector<Float> linModelErrors;
-
-		// Avoid computing this twice later (already computed once in 'computeLinearModel').
-		//Eigen::MatrixXd X;// = constructX(linModel.windowSize, rawPixelData, linModel.center);
 		Eigen::MatrixXd XcT;
-		//Eigen::VectorXd Y;// = constructY(linModel.windowSize, rawPixelData, linModel.center);
 
 		Float linModelError;
 		Float newLinModelError;

@@ -14,7 +14,7 @@ namespace pbrt
 	struct AdaptiveGrid
 	{
 		AdaptiveGrid(int fixedWindowSize = 19) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
-		void refineGrid() { granularity /= 2; /*margin.x /= 2; margin.y /= 2;*/ }
+		void refineGrid() { granularity /= 2; margin.x /= 2; margin.y /= 2; }
 
 		Point2i margin;
 		int granularity;
@@ -39,7 +39,7 @@ namespace pbrt
 		Point2i center;
 		int windowSize;
 		Eigen::VectorXd linModelCoeffs;
-		double predError;
+		double predError = 0.0;
 	};
 
 	class LPSamplingPlanner : public SamplingPlanner
@@ -47,7 +47,7 @@ namespace pbrt
 	public:
 		LPSamplingPlanner(int64_t resolutionX, int64_t resolutionY) :
 			grid(AdaptiveGrid()),
-			coverageMask(std::vector<std::vector<vector_bool>>(resolutionX+2, std::vector<vector_bool>(resolutionY+2, vector_bool()))),
+			coverageMask(std::vector<std::vector<vector_bool>>(resolutionX+4, std::vector<vector_bool>(resolutionY+4, vector_bool()))),
 			initialRenderFilmReady(false),
 			finalRender(false),
 			numberCoveredPixels(0){ }
