@@ -25,6 +25,7 @@ namespace pbrt
 	{
 		vector_bool() : value(false) {};
 		bool value;
+		int coverageCounter = 0;
 	};
 
 	struct rawPixelData
@@ -76,7 +77,7 @@ namespace pbrt
 		void updatePredictionErrorEstimate(LinearModel &linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd X, Eigen::MatrixXd Y);
 		
 		int findMinErrorLinModelIdx(std::vector<LinearModel> linModels);
-		int64_t getPlannedSampleNumber();		//Debug! Currently test implementation for matrix inverse computation
+		int64_t getPlannedSampleNumber(LinearModel minErrorLinModel, int64_t additionalSampleStep);		//Debug! Currently test implementation for matrix inverse computation
 		virtual void copyInitialRenderFilm(Film* film);
 		virtual Point2i computeMargin(Film* film);
 	};

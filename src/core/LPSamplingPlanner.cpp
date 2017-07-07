@@ -32,8 +32,8 @@ namespace pbrt
 		//copy film after initial Render
 		if (initialRenderFilmReady == false)
 		{
-			getPlannedSampleNumber(); // DEBUG! Test matrix inverse.
 			printf("\n second render pass \n");
+			// TODO: Convert values from xyz to rgb.
 			copyInitialRenderFilm(film);
 			initialRenderFilmReady = true;
 
@@ -60,6 +60,28 @@ namespace pbrt
 		//all pixels covered --> use actual plannedSampleMap
 		if (numberCoveredPixels == film->fullResolution.x * film->fullResolution.y)
 		{
+			Float averageSPP = 0;
+			for (int row = 0; row < temp_plannedSampleMap.size(); row++)
+			{
+				for (int column = 0; column < temp_plannedSampleMap[0].size(); column++)
+				{
+					if (coverageMask[row][column].coverageCounter == 0)
+					{
+						temp_plannedSampleMap[row][column] = 0;
+					}
+					else 
+					{
+						//printf("\n\n temp_plannedSampleMap[%d][%d]: %d\n", row, column, temp_plannedSampleMap[row][column]);
+						//printf("coverageMask[%d][%d]: %d\n\n", row, column, coverageMask[row][column].coverageCounter);
+
+						temp_plannedSampleMap[row][column] /= coverageMask[row][column].coverageCounter;
+						averageSPP += Float(temp_plannedSampleMap[row][column]);
+					}
+				}
+			}
+			averageSPP /= Float(film->fullResolution.x * film->fullResolution.y);
+			printf("\n Average samples per pixel (averageSPP): %f\n", averageSPP);
+
 			printf("\n all pixels covered \n");
 			plannedSampleMap = temp_plannedSampleMap;
 			finalRender = true;
@@ -79,8 +101,9 @@ namespace pbrt
 				}
 				
 				//Add more samples to Area around the center pixels for test purposes
-				int kOpt = grid.fixedWindowSize;
+				int64_t kOpt = grid.fixedWindowSize;
 
+				LinearModel minErrorLinModel;
 				//for pixels that are part of the image but the kOpt window reaches over the border -> add coverage but dont add additional samples
 				if (!(row - grid.fixedWindowSize / 2 < 2 || row + grid.fixedWindowSize / 2 > plannedSampleMap.size() - 3 || column - grid.fixedWindowSize / 2 < 2 || column + grid.fixedWindowSize / 2 > plannedSampleMap[0].size() - 3))
 				{
@@ -94,6 +117,8 @@ namespace pbrt
 						linModels.push_back(linModel);
 					}
 					int minErrorLinModelIdx = findMinErrorLinModelIdx(linModels);
+					minErrorLinModel = linModels[minErrorLinModelIdx];
+					kOpt = minErrorLinModel.windowSize;
 				}
 
 				for (int x = row - kOpt / 2; x <= row + kOpt / 2; x++)
@@ -122,6 +147,7 @@ namespace pbrt
 							
 							numberCoveredPixels++;
 							coverageMask[x][y].value = true;
+							coverageMask[x][y].coverageCounter++;
 							//printf("xy now covered but did not get any samples \n");
 							continue;
 						}
@@ -130,20 +156,17 @@ namespace pbrt
 						if (coverageMask[x][y].value == false)
 						{
 						//	printf("xy now covered and got samples \n");
-			
-							temp_plannedSampleMap[x][y] += 10;
-							
 							
 							numberCoveredPixels++;
 							coverageMask[x][y].value = true;
 							//printf("\n number covered pixels: %d \n", numberCoveredPixels);
 						}
-						else
-						{
-							//printf("xy already covered \n");
-							//printf("\n pixel covered by multiple models \n");
-							//TODO: what to do if a pixel is covered by multiple linear models?
-						}
+						temp_plannedSampleMap[x][y] += getPlannedSampleNumber(minErrorLinModel, 2);
+						coverageMask[x][y].coverageCounter++;
+						//printf("xy already covered \n");
+						//printf("\n pixel covered by multiple models \n");
+						//TODO: what to do if a pixel is covered by multiple linear models?
+						
 					}
 				}
 			}
@@ -208,12 +231,25 @@ namespace pbrt
 		return finalRender ? false : true;
 	}
 	
-	int64_t LPSamplingPlanner::getPlannedSampleNumber()
+	int64_t LPSamplingPlanner::getPlannedSampleNumber(LinearModel minErrorLinModel, int64_t additionalSampleStep)
 	{
+		Float factor = 10000000.0;
 
+		Float tmpModifiedError = minErrorLinModel.predError * factor;
 
-		
-		return 0;
+		int64_t plannedSampleNumber = 0;
+
+		while (tmpModifiedError > 1.0)
+		{
+			if (plannedSampleNumber == 0)
+			{
+				plannedSampleNumber += additionalSampleStep;
+			}
+			plannedSampleNumber *= additionalSampleStep;
+			tmpModifiedError /= 100.0;
+		}
+
+		return plannedSampleNumber;
 	}
 
 	// Change from XYZ to RGB later.
@@ -356,7 +392,7 @@ namespace pbrt
 	{
 		Float minLinModelError = std::numeric_limits<Float>::max();
 		int minLinModelErrorIdx = 0;
-		Float minErrorThreshold = 0.0000001;
+		Float minErrorThreshold = 0.000000001;
 		for (int i = 0; i < linModels.size(); i++)
 		{
 			if (linModels[i].predError < minLinModelError && linModels[i].predError > minErrorThreshold)
