@@ -62,6 +62,8 @@ class Film {
          std::unique_ptr<Filter> filter, Float diagonal,
          const std::string &filename, Float scale,
          Float maxSampleLuminance = Infinity);
+	Film(const Point2i &resolution, Float diagonal, Filter* filt, const std::string &filename, Float scale, Float maxSampleLuminance);
+	Film Film_Copy(const Film& rhs);
     Bounds2i GetSampleBounds() const;
     Bounds2f GetPhysicalExtent() const;
     std::unique_ptr<FilmTile> GetFilmTile(const Bounds2i &sampleBounds);

@@ -3,7 +3,7 @@
 
 #include <geometry.h>
 #include <vector>
-
+#include <film.h>
 namespace pbrt {
 
 	class Adaptive_Evaluater
@@ -14,7 +14,8 @@ namespace pbrt {
 		virtual unsigned int getDoneSampleCount(Point2i p0) = 0;
 		virtual unsigned int getSampleCount(Point2i p0) = 0;
 		virtual void updateSampleMap() = 0;
-
+		virtual Film* getFilm() = 0;
+		virtual bool isFinished() = 0;
 	};
 }
 #endif

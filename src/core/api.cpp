@@ -1464,7 +1464,7 @@ Integrator *RenderOptions::MakeIntegrator() const {
 	
 	std::shared_ptr<Adaptive_Evaluater> a_eval = MakeAdaptiveEvaluater(AdaptiveEvaluaterName, AdaptiveEvaluaterParams, camera->film);
 	if (!a_eval) {
-		Error("Unable to create sampler.");
+		Error("Unable to create adaptive evaluater.");
 		return nullptr;
 	}
 
