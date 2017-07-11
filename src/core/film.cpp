@@ -63,7 +63,7 @@ Film::Film(const Point2i &resolution, const Bounds2f &cropWindow,
 
     // Allocate film image storage
     pixels = std::unique_ptr<Pixel[]>(new Pixel[croppedPixelBounds.Area()]);
-    filmPixelMemory += croppedPixelBounds.Area() * sizeof(Pixel);
+    filmPixelMemory += croppedPixelBounds.Area() * sizeof(Pixel); 
 
     // Precompute filter weight table
     int offset = 0;
@@ -75,34 +75,6 @@ Film::Film(const Point2i &resolution, const Bounds2f &cropWindow,
             filterTable[offset] = filter->Evaluate(p);
         }
     }
-}
-Film::Film(const Point2i &resolution, Float diagonal, Filter* filt, const std::string &filename, Float scale, Float maxSampleLuminance)
-	:
-	fullResolution(resolution),
-		diagonal(diagonal * .001),
-		filter(std::move(filt)),
-		filename(filename),
-		scale(scale),
-		maxSampleLuminance(maxSampleLuminance)
-{
-}
-Film Film::Film_Copy(const Film& rhs)
-{
-	//const Point2i &resolution, const Bounds2f &cropWindow,
-	//std::unique_ptr<Filter> filt, Float diagonal,
-		//const std::string &filename, Float scale, Float maxSampleLuminance)
-		//
-	Film temp(rhs.fullResolution,rhs.diagonal,rhs.filter.get(),rhs.filename,rhs.scale,rhs.maxSampleLuminance);
-	temp.croppedPixelBounds = rhs.croppedPixelBounds;
-	temp.pixels = std::unique_ptr<Pixel[]>(new Pixel[temp.croppedPixelBounds.Area()]);
-	filmPixelMemory += temp.croppedPixelBounds.Area() * sizeof(Pixel);
-	int offset = 0;
-	for (int y = 0; y < filterTableWidth; ++y) {
-		for (int x = 0; x < filterTableWidth; ++x, ++offset){
-			temp.filterTable[offset] = rhs.filterTable[offset];
-		}
-	}
-	return temp;
 }
 
 Bounds2i Film::GetSampleBounds() const {

@@ -702,9 +702,15 @@ std::shared_ptr<Adaptive_Evaluater> MakeAdaptiveEvaluater(const std::string &nam
 	const ParamSet &paramSet,
 	Film *film) {
 	Adaptive_Evaluater *adaptive_Evaluater = nullptr;
-	const int samplebudget = paramSet.FindOneInt("samplebudget", 25);
+
 	if (name == "NLMeans")
-		adaptive_Evaluater = CreateNLMeans(film, samplebudget);
+	{
+		const int samplebudget = paramSet.FindOneInt("samplebudget", 25);
+		const int r = paramSet.FindOneInt("r", 10);
+		const int f = paramSet.FindOneInt("f", 3);
+		const double k = paramSet.FindOneFloat("k", 0.45);
+		adaptive_Evaluater = CreateNLMeans(film, samplebudget, r, f, k);
+	}
 	else
 		Warning("Sampler \"%s\" unknown.", name.c_str());
 	paramSet.ReportUnused();

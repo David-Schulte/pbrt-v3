@@ -436,6 +436,7 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 	const int tileSize = 16;
 	Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
 		(sampleExtent.y + tileSize - 1) / tileSize);
+	a_eval->initialize();
 	do
 	{
 		ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
@@ -533,11 +534,12 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 				LOG(INFO) << "Finished image tile " << tileBounds;
 
 				// Merge image tile into _Film_
-				a_eval->getFilm()->MergeFilmTile(std::move(filmTile));
+				camera->film->MergeFilmTile(std::move(filmTile));
 				reporter.Update();
 			}, nTiles);
 			reporter.Done();
 		}
+		a_eval->updateSampleMap();
 	}
 	while ( a_eval->hasNextIteration() ) ;
 	LOG(INFO) << "Rendering finished";
