@@ -246,11 +246,11 @@ void SamplerIntegrator::Render(const Scene &scene)
 
 	
     sampler->InitializeSamplingPlan(camera->film);
-	sampler->PlannedAdaptiveIterations(2); // Debug!
+	//sampler->PlannedAdaptiveIterations(2); // Debug!
 
     do
     {
-        sampler->UpdateSamplingPlan(camera->film, 1); // Debug!
+        sampler->UpdateSamplingPlan(camera->film);
 
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
         {

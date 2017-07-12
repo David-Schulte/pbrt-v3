@@ -32,7 +32,8 @@ namespace pbrt
 	{
 		rawPixelData(Float* _xyz) { xyz[0] = _xyz[0]; xyz[1] = _xyz[1]; xyz[2] = _xyz[2]; }
 		rawPixelData() { xyz[0] = 0; xyz[1] = 0; xyz[2] = 0; }
-		Float xyz[3];
+		Float xyz[3] = { 0,0,0 };
+		Float rgb[3] = { 0,0,0 };
 	};
 
 	struct LinearModel
@@ -76,8 +77,8 @@ namespace pbrt
 		LinearModel computeLinearModelAndPredictionError(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
 		void updatePredictionErrorEstimate(LinearModel &linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd X, Eigen::MatrixXd Y);
 		
-		int findMinErrorLinModelIdx(std::vector<LinearModel> linModels);
-		int64_t getPlannedSampleNumber(LinearModel minErrorLinModel, int64_t additionalSampleStep);		//Debug! Currently test implementation for matrix inverse computation
+		int findMinErrorLinModelIdx(std::vector<LinearModel> linModels, Float minErrorThreshold = 0.000000001);
+		int64_t getPlannedSampleNumber(LinearModel minErrorLinModel, int64_t additionalSampleStep, Float invMinErrorThresholdFactor = 10000000.0);		//Debug! Currently test implementation for matrix inverse computation
 		virtual void copyInitialRenderFilm(Film* film);
 		virtual Point2i computeMargin(Film* film);
 	};
