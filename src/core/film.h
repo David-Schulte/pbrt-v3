@@ -52,6 +52,9 @@ namespace pbrt {
 struct FilmTilePixel {
     Spectrum contribSum = 0.f;
     Float filterWeightSum = 0.f;
+	int sampleCount = 0;
+	Float mean[3];
+	Float sample_variance[3];
 };
 
 // Film Declarations
@@ -85,6 +88,9 @@ class Film {
         Float xyz[3];
         Float filterWeightSum;
         AtomicFloat splatXYZ[3];
+		Float sample_variance[3];
+		int sampleCount = 0;
+		Float mean[3];
         Float pad;
     };
 	std::unique_ptr<Pixel[]> pixels;
@@ -157,6 +163,14 @@ class FilmTile {
                 FilmTilePixel &pixel = GetPixel(Point2i(x, y));
                 pixel.contribSum += L * sampleWeight * filterWeight;
                 pixel.filterWeightSum += filterWeight;
+
+				// store and update additional pixel statistics
+				pixel.sampleCount++;
+				//Float sample_contrib_rgb = 
+				Float old_mean[3] = { pixel.mean[0], pixel.mean[1], pixel.mean[2] };
+				Float old_variance[3] = { pixel.sample_variance[0], pixel.sample_variance[1], pixel.sample_variance[2] };
+
+
             }
         }
     }
