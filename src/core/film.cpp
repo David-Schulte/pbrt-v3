@@ -100,10 +100,24 @@ std::unique_ptr<FilmTile> Film::GetFilmTile(const Bounds2i &sampleBounds)
     Point2i p1 = (Point2i)Floor(floatBounds.pMax - halfPixel + filter->radius) + Point2i(1, 1);
     Bounds2i tilePixelBounds = Intersect(Bounds2i(p0, p1), croppedPixelBounds);
 
-    return std::unique_ptr<FilmTile>
-        (
-            new FilmTile(tilePixelBounds, filter->radius, filterTable, filterTableWidth, maxSampleLuminance, amountOfBuffers)
-        );
+    std::unique_ptr<FilmTile> filmTile ( new FilmTile(tilePixelBounds, filter->radius, filterTable, filterTableWidth, maxSampleLuminance, amountOfBuffers) );
+
+    //Initialize filmTile's pixel with some values from the film's pixel to keep counting variance and mean
+    for (int buffer = 0; buffer < amountOfBuffers; buffer++)
+        for (Point2i pixel : filmTile->GetPixelBounds())
+        {
+            FilmTilePixel &tilePixel = filmTile->GetPixel(buffer, pixel);
+            Pixel &filmPixel = GetPixel(buffer, pixel);
+
+            tilePixel.previousFilterWeightSum = filmPixel.filterWeightSum;
+            for (int i = 0; i < 3; i++)
+            {
+                tilePixel.mean[i] = filmPixel.mean[i];
+                tilePixel.varianceSum[i] = filmPixel.varianceSum[i];
+            }
+        }
+
+    return filmTile;
 }
 
 void Film::Clear() 
@@ -123,7 +137,7 @@ void Film::SetBuffers(const int count)
 
     while (buffers.size() > count)
     {
-        buffers.erase(buffers.begin());
+        buffers.pop_back();
         filmPixelMemory -= croppedPixelBounds.Area() * sizeof(Pixel);
     }
 
@@ -144,15 +158,29 @@ void Film::MergeFilmTile(std::unique_ptr<FilmTile> tile)
     std::lock_guard<std::mutex> lock(mutex);
 
     for (int buffer = 0; buffer < amountOfBuffers; buffer++)
-        for (Point2i pixel : tile->GetPixelBounds()) 
+        for (Point2i position : tile->GetPixelBounds()) 
         {
             // Merge _pixel_ into _Film::buffers_
-            const FilmTilePixel &tilePixel = tile->GetPixel(buffer, pixel);
-            Pixel &mergePixel = GetPixel(buffer, pixel);
+            const FilmTilePixel &tilePixel = tile->GetPixel(buffer, position);
+
+            //Can happen, due to bounds being somehow wrong, the error seems to get introduced by GetFilmTile method, where the bounds are made bigger than seemingly necessary.
+            //This results in pixels being merged twice. The second time without any information in them, overwriting the valid information from before.
+            if (tilePixel.filterWeightSum < 0.001) continue; //TODO:: Should not happen but does
+
+            Pixel &mergePixel = GetPixel(buffer, position);
             Float xyz[3];
             tilePixel.contribSum.ToXYZ(xyz);
+            
+            //Add sample
             for (int i = 0; i < 3; ++i) mergePixel.xyz[i] += xyz[i];
             mergePixel.filterWeightSum += tilePixel.filterWeightSum;
+
+            //Take over new mean and variance
+            for (int i = 0; i < 3; i++)
+            {
+                mergePixel.mean[i] = tilePixel.mean[i];
+                mergePixel.varianceSum[i] = tilePixel.varianceSum[i];
+            }
         }
 }
 
@@ -200,6 +228,58 @@ void Film::AddSplat(const Point2f &p, Spectrum v, const int buffer)
     for (int i = 0; i < 3; ++i) pixel.splatXYZ[i].Add(xyz[i]);
 }
 
+void Film::WriteVarianceImage(std::string nameOfFile, int buffer, Float splatScale)
+{
+    SetBuffers(amountOfBuffers + 1);
+    for (Point2i position : croppedPixelBounds)
+    {
+        Pixel& pixel = GetPixel(amountOfBuffers - 1, position);
+        for (int i = 0; i < 3; i++) pixel.xyz[i] = GetPixel(buffer, position).varianceSum[i] / GetPixel(buffer, position).filterWeightSum;
+        pixel.filterWeightSum = 1;
+    }
+    WriteBufferImage(nameOfFile, amountOfBuffers - 1);
+    SetBuffers(amountOfBuffers - 1);
+}
+
+void Film::WriteBufferDifferenceImage(std::string nameOfFile, int buffer1, int buffer2, Float splatScale)
+{
+    SetBuffers(amountOfBuffers + 1);
+    for (Point2i position : croppedPixelBounds)
+    {
+        Pixel& pixel = GetPixel(amountOfBuffers - 1, position);
+        for (int i = 0; i < 3; i++)
+        {
+            Float xyz1 = GetPixel(buffer1, position).xyz[i] / GetPixel(buffer1, position).filterWeightSum;
+            Float xyz2 = GetPixel(buffer2, position).xyz[i] / GetPixel(buffer2, position).filterWeightSum;
+            pixel.xyz[i] = std::abs(xyz1 - xyz2);
+        }
+        pixel.filterWeightSum = 1;
+    }
+    WriteBufferImage(nameOfFile, amountOfBuffers - 1);
+    SetBuffers(amountOfBuffers - 1);
+}
+
+void Film::WriteBufferImage(std::string nameOfFile, int buffer, Float splatScale)
+{
+    std::unique_ptr<Float[]> rgb(new Float[3 * croppedPixelBounds.Area()]);
+
+    int offset = 0;
+    for (Point2i p : croppedPixelBounds)
+    {
+        Pixel &pixel = GetPixel(buffer, p);
+        std::shared_ptr<Pixel> sharedPixel = std::make_shared<Pixel>();
+
+        for (int i = 0; i < 3; ++i) sharedPixel->xyz[i] = pixel.xyz[i];
+        for (int i = 0; i < 3; ++i) sharedPixel->splatXYZ[i].Add(pixel.splatXYZ[i]);
+        sharedPixel->filterWeightSum = pixel.filterWeightSum;
+        sharedPixel->pad = pixel.pad;
+
+        StorePixelInRGB(sharedPixel, offset, &rgb[0], splatScale);
+        ++offset;
+    }
+    pbrt::WriteImage(nameOfFile, &rgb[0], croppedPixelBounds, fullResolution);
+}
+
 void Film::WriteImage(Float splatScale) 
 {
     // Convert image to RGB and compute final pixel values
@@ -209,39 +289,43 @@ void Film::WriteImage(Float splatScale)
     int offset = 0;
     for (Point2i p : croppedPixelBounds) 
     {
-        // Convert pixel XYZ color to RGB
         std::shared_ptr<Pixel> pixel = GetCombinedPixel(p);
-        XYZToRGB(pixel->xyz, &rgb[3 * offset]);
-
-        // Normalize pixel with weight sum
-        Float filterWeightSum = pixel->filterWeightSum;
-        if (filterWeightSum != 0) 
-        {
-            Float invWt = (Float)1 / filterWeightSum;
-            rgb[3 * offset] = std::max((Float)0, rgb[3 * offset] * invWt);
-            rgb[3 * offset + 1] = std::max((Float)0, rgb[3 * offset + 1] * invWt);
-            rgb[3 * offset + 2] = std::max((Float)0, rgb[3 * offset + 2] * invWt);
-        }
-
-        // Add splat value at pixel
-        Float splatRGB[3];
-        Float splatXYZ[3] = {pixel->splatXYZ[0], pixel->splatXYZ[1], pixel->splatXYZ[2]};
-        XYZToRGB(splatXYZ, splatRGB);
-        rgb[3 * offset] += splatScale * splatRGB[0];
-        rgb[3 * offset + 1] += splatScale * splatRGB[1];
-        rgb[3 * offset + 2] += splatScale * splatRGB[2];
-
-        // Scale pixel value by _scale_
-        rgb[3 * offset] *= scale;
-        rgb[3 * offset + 1] *= scale;
-        rgb[3 * offset + 2] *= scale;
-
+        StorePixelInRGB(pixel, offset, &rgb[0], splatScale);
         ++offset;
     }
 
     // Write RGB image
     LOG(INFO) << "Writing image " << filename << " with bounds " << croppedPixelBounds;
     pbrt::WriteImage(filename, &rgb[0], croppedPixelBounds, fullResolution);
+}
+
+void Film::StorePixelInRGB(std::shared_ptr<Pixel> pixel, int offset, Float* rgb, Float splatScale)
+{
+    // Convert pixel XYZ color to RGB
+    XYZToRGB(pixel->xyz, &rgb[3 * offset]);
+
+    // Normalize pixel with weight sum
+    Float filterWeightSum = pixel->filterWeightSum;
+    if (filterWeightSum != 0)
+    {
+        Float invWt = (Float)1 / filterWeightSum;
+        rgb[3 * offset] = std::max((Float)0, rgb[3 * offset] * invWt);
+        rgb[3 * offset + 1] = std::max((Float)0, rgb[3 * offset + 1] * invWt);
+        rgb[3 * offset + 2] = std::max((Float)0, rgb[3 * offset + 2] * invWt);
+    }
+
+    // Add splat value at pixel
+    Float splatRGB[3];
+    Float splatXYZ[3] = { pixel->splatXYZ[0], pixel->splatXYZ[1], pixel->splatXYZ[2] };
+    XYZToRGB(splatXYZ, splatRGB);
+    rgb[3 * offset] += splatScale * splatRGB[0];
+    rgb[3 * offset + 1] += splatScale * splatRGB[1];
+    rgb[3 * offset + 2] += splatScale * splatRGB[2];
+
+    // Scale pixel value by _scale_
+    rgb[3 * offset] *= scale;
+    rgb[3 * offset + 1] *= scale;
+    rgb[3 * offset + 2] *= scale;
 }
 
 Film *CreateFilm(const ParamSet &params, std::unique_ptr<Filter> filter) {

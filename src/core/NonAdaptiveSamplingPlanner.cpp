@@ -13,10 +13,18 @@ namespace pbrt
     void NonAdaptiveSamplingPlanner::UpdateSampleMap(Film * film)
     {
         FillMapUniformly(sampleMap, maxSamplesPerPixel);
+
+
+
+        if (currentIteration > plannedIterations) //Post processing...
+        {
+            film->WriteVarianceImage("pixelVariance.exr", 0);
+        }
     }
 
     void NonAdaptiveSamplingPlanner::CreateSamplingPlan(Film *film)
     {
+        film->SetBuffers(1);
         plannedIterations = 1;
         maxSamplesPerPixel = sampleBudgetPerPixel;
     }

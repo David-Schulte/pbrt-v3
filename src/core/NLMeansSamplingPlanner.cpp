@@ -18,6 +18,14 @@ namespace pbrt
 
         EstimateError(film);
         //FillMapUniformly(sampleMap, iterationBudgets[currentIteration - 1]);
+
+        if (currentIteration > plannedIterations) //Post processing...
+        {
+            film->WriteBufferImage("buffer1.exr", 0);
+            film->WriteBufferImage("buffer2.exr", 1);
+            film->WriteVarianceImage("pixelVariance.exr", 0);
+            film->WriteBufferDifferenceImage("bufferDifference.exr", 0, 1);
+        }
     }
 
     void NLMeansSamplingPlanner::CreateSamplingPlan(Film *film)
@@ -62,6 +70,8 @@ namespace pbrt
         float filterRadius = std::ceil(std::sqrt(minDimension) / 10);
         float patchRadius = std::ceil(filterRadius / 2);
 
+        LOG(INFO) << "filterRadius: " << filterRadius << ", patchRadius: " << patchRadius;
+
         std::vector<std::vector<std::vector<float>>> filteredBuffer0 = filter->Filter(film, 1, 0, filterRadius, patchRadius);
         std::vector<std::vector<std::vector<float>>> filteredBuffer1 = filter->Filter(film, 0, 1, filterRadius, patchRadius);
         
@@ -100,7 +110,7 @@ namespace pbrt
         }
         averageDifference /= pixelCounter;
 
-        LOG(INFO) << "average color difference of buffers: " << averageDifference;
+        LOG(INFO) << "Average color difference of buffers: " << averageDifference;
 
         int averageFreePixelBudget = iterationBudgets[currentIteration - 1] - 1;
         float overflow = 0;

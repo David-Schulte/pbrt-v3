@@ -54,15 +54,20 @@ namespace pbrt
         Float xyz[3];
         Float filterWeightSum;
         AtomicFloat splatXYZ[3];
+        Float mean[3];
+        Float varianceSum[3];
         Float pad;
 
-        Pixel() { xyz[0] = xyz[1] = xyz[2] = filterWeightSum = 0; }
+        Pixel() { xyz[0] = xyz[1] = xyz[2] = filterWeightSum = mean[0] = mean[1] = mean[2] = varianceSum[0] = varianceSum[1] = varianceSum[2] = 0; }
     };
 
     struct FilmTilePixel 
     {
         Spectrum contribSum = 0.f;
         Float filterWeightSum = 0.f;
+        Float mean[3];
+        Float varianceSum[3];
+        Float previousFilterWeightSum;
     };
     
     // Film Declarations
@@ -89,6 +94,9 @@ namespace pbrt
           void MergeFilmTile(std::unique_ptr<FilmTile> tile);
           void SetImage(const Spectrum *img, const int buffer = 0) const;
           void AddSplat(const Point2f &p, Spectrum v, const int buffer = 0); //Used in bdpt and mlt integrators! Maybe it should distribute splats over the buffers instead of defaulting to the first, as with the FilmTiles AddSample method?
+          void WriteVarianceImage(std::string filename, int buffer, Float splatScale = 1);
+          void WriteBufferDifferenceImage(std::string filename, int buffer1, int buffer2, Float splatScale = 1);
+          void WriteBufferImage(std::string filename, int buffer, Float splatScale = 1);
           void WriteImage(Float splatScale = 1);
           void Clear();
           void SetBuffers(const int count = 1);
@@ -129,6 +137,8 @@ namespace pbrt
           std::mutex mutex;
           const Float scale;
           const Float maxSampleLuminance;
+
+          void StorePixelInRGB(std::shared_ptr<Pixel> pixel, int offset, Float* rgb, Float splatScale = 1);
     };
     
     class FilmTile 
@@ -189,8 +199,31 @@ namespace pbrt
     
                     // Update pixel values with filtered sample contribution
                     FilmTilePixel &pixel = GetPixel(addToBufferIndex, Point2i(x, y));
-                    pixel.contribSum += L * sampleWeight * filterWeight;
+                    Spectrum currentContributionSpectrum = L * sampleWeight;
+                    pixel.contribSum += currentContributionSpectrum * filterWeight;
                     pixel.filterWeightSum += filterWeight;
+
+                    //Initialize and save some values for the next mean and variance calculations
+                    Float currentContributionXYZ[3];
+                    Float formerMean[3];
+                    Float formerVariance[3];
+                    Float totalFilterWeight = pixel.previousFilterWeightSum + pixel.filterWeightSum;
+                    Float totalFormerFilterWeight = totalFilterWeight - filterWeight;
+                    for (int i = 0; i < 3; i++)
+                    {
+                        formerMean[i] = pixel.mean[i];
+                        formerVariance[i] = pixel.varianceSum[i];
+                    }
+                    currentContributionSpectrum.ToXYZ(currentContributionXYZ);
+
+                    //Compute new total incremental mean
+                    for (int i = 0; i < 3; i++) pixel.mean[i] += (filterWeight / totalFilterWeight) * (currentContributionXYZ[i] - pixel.mean[i]);
+
+                    //Compute new total incremental variance
+                    if (totalFormerFilterWeight < 0.00001) for (int i = 0; i < 3; i++) pixel.varianceSum[i] = 0;
+                    else
+                        for (int i = 0; i < 3; i++)
+                            pixel.varianceSum[i] = formerVariance[i] + filterWeight * (currentContributionXYZ[i] - formerMean[i]) * (currentContributionXYZ[i] - pixel.mean[i]);
 
                     IncrementBufferIndex();
                 }
