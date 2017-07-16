@@ -228,6 +228,63 @@ void Film::AddSplat(const Point2f &p, Spectrum v, const int buffer)
     for (int i = 0; i < 3; ++i) pixel.splatXYZ[i].Add(xyz[i]);
 }
 
+void Film::WriteToBuffer(int buffer, const std::vector<std::vector<std::vector<Float>>> &valuesXYZ)
+{
+    for (Point2i position : croppedPixelBounds)
+    {
+        Pixel& pixel = GetPixel(buffer, position);
+        for (int i = 0; i < 3; i++) pixel.xyz[i] = valuesXYZ[position.x][position.y][i] * pixel.filterWeightSum;
+    }
+}
+
+std::vector<std::vector<std::vector<Float>>> Film::BufferMean(int buffer) 
+{
+    std::vector<std::vector<std::vector<Float>>> bufferMean (croppedPixelBounds.pMax.x - croppedPixelBounds.pMin.x,                                 //size in 1st dimension
+                                                             std::vector<std::vector<Float>>(croppedPixelBounds.pMax.y - croppedPixelBounds.pMin.y, //size in 2nd dimension
+                                                             std::vector<Float>(3)));                                                               //3 values for each pixel
+    
+    Point2i start = croppedPixelBounds.pMin;
+
+    for (int y = 0; y < bufferMean[0].size(); y++)
+    {
+        for (int x = 0; x < bufferMean.size(); x++)
+        {
+            Point2i offset(x, y);
+            Pixel &pixel = GetPixel(buffer, start + offset);
+
+            //Recalculating the mean here, because the mean variable used in the pixel is a running sum for variance calculation. 
+            //This sum may diverge from the actual mean color values after filtering the buffer.
+            for (int i = 0; i < 3; i++) bufferMean[x][y][i] = pixel.xyz[i] / pixel.filterWeightSum;
+        }
+    }
+
+    return bufferMean;
+}
+
+std::vector<std::vector<std::vector<Float>>> Film::BufferVariance(int buffer)
+{
+    std::vector<std::vector<std::vector<Float>>> bufferVariance (croppedPixelBounds.pMax.x - croppedPixelBounds.pMin.x,                                 //size in 1st dimension
+                                                                 std::vector<std::vector<Float>>(croppedPixelBounds.pMax.y - croppedPixelBounds.pMin.y, //size in 2nd dimension
+                                                                 std::vector<Float>(3)));                                                               //3 values for each pixel
+
+    Point2i start = croppedPixelBounds.pMin;
+
+    for (int y = 0; y < bufferVariance[0].size(); y++)
+    {
+        for (int x = 0; x < bufferVariance.size(); x++)
+        {
+            Point2i offset(x, y);
+            Pixel &pixel = GetPixel(buffer, start + offset);
+
+            //Recalculating the mean here, because the mean variable used in the pixel is a running sum for variance calculation. 
+            //This sum may diverge from the actual mean color values after filtering the buffer.
+            for (int i = 0; i < 3; i++) bufferVariance[x][y][i] = pixel.varianceSum[i] / pixel.filterWeightSum;
+        }
+    }
+
+    return bufferVariance;
+}
+
 void Film::WriteVarianceImage(std::string nameOfFile, int buffer, Float splatScale)
 {
     SetBuffers(amountOfBuffers + 1);
