@@ -84,7 +84,7 @@ private:
     void MergeFilmTile(std::unique_ptr<FilmTile> tile);
     void SetImage(const Spectrum *img) const;
     void AddSplat(const Point2f &p, Spectrum v);
-    void WriteImage(Float splatScale = 1);
+    void WriteImage(Float splatScale = 1, const std::string &alternateName = "");
     void Clear();
 
     // Film Public Data

@@ -59,6 +59,8 @@ namespace pbrt
 		virtual void UpdateSamplingPlan(Film * film, const int64_t adaptiveSamplesCount=0) override;
 		virtual bool StartNextIteration();
 
+		bool initialRenderFilmReady;
+
 	protected:
 		virtual void CreateSamplingPlan(int samplesPerPixel, Film * film) override;
 		
@@ -69,8 +71,8 @@ namespace pbrt
 		AdaptiveGrid grid;
 		std::vector<std::vector<vector_bool>> coverageMask;
 		std::vector<std::vector<rawPixelData>> initialRenderFilm;
-		std::vector<std::vector<int64_t>> temp_plannedSampleMap; //will be used to accumulate planned sample number until every pixel is covered
-		bool initialRenderFilmReady;
+		std::vector<std::vector<int64_t>> temp_plannedSampleMap;
+		//bool initialRenderFilmReady;
 		bool finalRender;
 		int64_t numberCoveredPixels;
 
@@ -78,7 +80,7 @@ namespace pbrt
 		void updatePredictionErrorEstimate(LinearModel &linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd X, Eigen::MatrixXd Y);
 		
 		int findMinErrorLinModelIdx(std::vector<LinearModel> linModels, Float minErrorThreshold = 0.000000001);
-		int64_t getPlannedSampleNumber(LinearModel minErrorLinModel, int64_t additionalSampleStep, Float invMinErrorThresholdFactor = 10000000.0);		//Debug! Currently test implementation for matrix inverse computation
+		int64_t getPlannedSampleNumber(LinearModel minErrorLinModel, int64_t additionalSampleStep, Float invMinErrorThresholdFactor = 100000000.0);		//Debug! Currently test implementation for matrix inverse computation
 		virtual void copyInitialRenderFilm(Film* film);
 		virtual Point2i computeMargin(Film* film);
 	};

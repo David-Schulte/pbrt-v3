@@ -70,15 +70,22 @@ std::unique_ptr<Sampler> MaxMinDistSampler::Clone(int seed) {
     return std::unique_ptr<Sampler>(mmds);
 }
 
+// TODO: Make compatible with adaptive sampling.
 MaxMinDistSampler *CreateMaxMinDistSampler(const ParamSet &params) {
     int nsamp = params.FindOneInt("pixelsamples", 16);
     int sd = params.FindOneInt("dimensions", 4);
     if (PbrtOptions.quickRender) nsamp = 1;
 
-    MaxMinDistSampler *sampler = new MaxMinDistSampler(nsamp, sd);
+	std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+	if (samplingPlanner != "nonadaptive")
+	{
+		nsamp = params.FindOneInt("maxadaptivesamples", 128);
+	}
 
-    std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
-    if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
+	MaxMinDistSampler *sampler = new MaxMinDistSampler(nsamp, sd);
+
+    //std::string samplingPlanner = params.FindOneString("samplingplanner", "nonadaptive");
+    //if (samplingPlanner == "nonadaptive") sampler->samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
 
     return sampler;
 }

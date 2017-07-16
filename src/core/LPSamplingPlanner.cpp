@@ -21,7 +21,7 @@ namespace pbrt
 		if (firstIteration)
 		{
 			//testMatrixInv();
-			testLUFactorization();
+			//testLUFactorization();
 			predictionErrorEstimateTest();
 			//printf("\ninputFilm size: [%d, %d]\n", film->fullResolution.x, film->fullResolution.y);
 			//printf("\nCoverageMask size: [%d, %d]\n", coverageMask[0].size(), coverageMask.size());
@@ -216,7 +216,8 @@ namespace pbrt
 		rawPixelData initValues = rawPixelData();
 		initialRenderFilm = std::vector<std::vector<rawPixelData>>(film->fullResolution.x, std::vector<rawPixelData>(film->fullResolution.y, initValues));
 
-		Float maxColorChannelVal = std::numeric_limits<Float>::min();
+		Float maxColorChannelRGBVal = std::numeric_limits<Float>::min();
+		Float maxColorChannelXYZVal = std::numeric_limits<Float>::min();
 
 		for (int row = 0; row < film->fullResolution.x; row++)
 		{
@@ -230,23 +231,39 @@ namespace pbrt
 				initialRenderFilm[row][column].rgb[0] = clamp(rgb[0], 0, std::numeric_limits<Float>::max());
 				initialRenderFilm[row][column].rgb[1] = clamp(rgb[1], 0, std::numeric_limits<Float>::max());
 				initialRenderFilm[row][column].rgb[2] = clamp(rgb[2], 0, std::numeric_limits<Float>::max());
-				if (rgb[0] > maxColorChannelVal)
+				
+				if (rgb[0] > maxColorChannelRGBVal)
 				{ 
-					maxColorChannelVal = rgb[0];
+					maxColorChannelRGBVal = rgb[0];
 				}
-				if (rgb[1] > maxColorChannelVal)
+				if (rgb[1] > maxColorChannelRGBVal)
 				{
-					maxColorChannelVal = rgb[1];
+					maxColorChannelRGBVal = rgb[1];
 				}
-				if (rgb[2] > maxColorChannelVal)
+				if (rgb[2] > maxColorChannelRGBVal)
 				{
-					maxColorChannelVal = rgb[2];
+					maxColorChannelRGBVal = rgb[2];
+				}
+
+				if (initialRenderFilm[row][column].xyz[0] > maxColorChannelXYZVal)
+				{
+					maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[0];
+				}
+				if (initialRenderFilm[row][column].xyz[1] > maxColorChannelXYZVal)
+				{
+					maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[1];
+				}
+				if (initialRenderFilm[row][column].xyz[2] > maxColorChannelXYZVal)
+				{
+					maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[2];
 				}
 				//printf("\n\nInitial RGB values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].rgb[0], initialRenderFilm[row][column].rgb[1], initialRenderFilm[row][column].rgb[2]);
+				//printf("\n\nInitial XYZ values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].xyz[0], initialRenderFilm[row][column].xyz[1], initialRenderFilm[row][column].xyz[2]);
 				delete[] rgb;
 			}
 		}
-		printf("\n\nMaximum color channel value: %f\n\n", maxColorChannelVal);
+		printf("\n\nMaximum color channel RGB value: %f\n\n", maxColorChannelRGBVal);
+		printf("\nMaximum color channel XYZ value: %f\n\n", maxColorChannelXYZVal);
 	}
 
 	Point2i LPSamplingPlanner::computeMargin(Film * film)
@@ -299,9 +316,9 @@ namespace pbrt
 				//{
 				int row = centerPixel.x - adaptiveWindowSize / 2 + i;
 				int column = centerPixel.y - adaptiveWindowSize / 2 + j;
-					result(i*adaptiveWindowSize + j, 1) = (rawPixelData[centerPixel.x][centerPixel.y].rgb[0] - rawPixelData[row][column].rgb[0]
-														+ rawPixelData[centerPixel.x][centerPixel.y].rgb[1] - rawPixelData[row][column].rgb[1]
-														+ rawPixelData[centerPixel.x][centerPixel.y].rgb[2] - rawPixelData[row][column].rgb[2]) / 3.0;
+					result(i*adaptiveWindowSize + j, 1) = (rawPixelData[centerPixel.x][centerPixel.y].xyz[0] - rawPixelData[row][column].xyz[0]
+														+ rawPixelData[centerPixel.x][centerPixel.y].xyz[1] - rawPixelData[row][column].xyz[1]
+														+ rawPixelData[centerPixel.x][centerPixel.y].xyz[2] - rawPixelData[row][column].xyz[2]) / 3.0;
 					// Not sure here!
 					//result(i*adaptiveWindowSize + j, 2) = rawPixelData[centerPixel.x][centerPixel.y].xyz[1] - rawPixelData[i][j].xyz[1];
 					//result(i*adaptiveWindowSize + j, 3) = rawPixelData[centerPixel.x][centerPixel.y].xyz[2] - rawPixelData[i][j].xyz[2];
@@ -325,9 +342,9 @@ namespace pbrt
 				//{
 				int row = centerPixel.x - adaptiveWindowSize / 2 + i;
 				int column = centerPixel.y - adaptiveWindowSize / 2 + j;
-				result(i*adaptiveWindowSize + j) = (rawPixelData[row][column].rgb[0]
-												+ rawPixelData[row][column].rgb[1]
-												+ rawPixelData[row][column].rgb[2]) / 3.0;
+				result(i*adaptiveWindowSize + j) = (rawPixelData[row][column].xyz[0]
+												+ rawPixelData[row][column].xyz[1]
+												+ rawPixelData[row][column].xyz[2]) / 3.0;
 				// Not sure here!
 				//result(i*adaptiveWindowSize + j, 2) = rawPixelData[centerPixel.x][centerPixel.y].xyz[1] - rawPixelData[i][j].xyz[1];
 				//result(i*adaptiveWindowSize + j, 3) = rawPixelData[centerPixel.x][centerPixel.y].xyz[2] - rawPixelData[i][j].xyz[2];
@@ -350,25 +367,25 @@ namespace pbrt
 		Eigen::MatrixXd A = X.transpose()*X;
 		Eigen::VectorXd B = X.transpose()*Y;
 
-		//Eigen::MatrixXd augmentedA(A.rows(), A.cols() + B.cols());
-		//augmentedA << A, B;
+		Eigen::MatrixXd augmentedA(A.rows(), A.cols() + B.cols());
+		augmentedA << A, B;
 
 		result.linModelCoeffs = Eigen::VectorXd(adaptiveWindowSize, Y.cols());
 		Eigen::FullPivLU<Eigen::MatrixXd> LU_A = A.fullPivLu();
 		////if (LU_A.isInvertible() || adaptiveWindowSize <= 3)
-		//if (A.fullPivLu().rank() == augmentedA.fullPivLu().rank()|| adaptiveWindowSize <= 3)
-		//{
+		if (A.fullPivLu().rank() == augmentedA.fullPivLu().rank()|| adaptiveWindowSize <= 3)
+		{
 			result.linModelCoeffs = LU_A.solve(B);
 
 			// Update prediction error of the linear model here.
 			updatePredictionErrorEstimate(result, rawPixelData, X, Y);
-		//}
-		//else 
-		//{
+		}
+		else 
+		{
 		//	printf("\n\nNo update, since Ax=b not (uniquely) solveable for size %d!**************************************************\n\n", adaptiveWindowSize);
-		//	result.linModelCoeffs = Eigen::VectorXd::Zero(X.cols(),1);
-		//	result.predError = 0.0;
-		//}
+			result.linModelCoeffs = Eigen::VectorXd::Zero(X.cols(),1);
+			result.predError = 0.0;
+		}
 
 		return result;
 	}
@@ -397,7 +414,9 @@ namespace pbrt
 				Eigen::MatrixXd Pc = (Xc.transpose()*Xc).inverse();
 				for (int i = 0; i < 9; i++)
 				{
-					newLinModelError = ((linModel.linModelCoeffs.row(i) * Xc.row(i).transpose())(1, 1) - Yc(i)) / (1.0 - (XcT.row(i).transpose() * Pc * XcT.row(i))(1, 1) + std::numeric_limits<Float>::min());
+					//newLinModelError = ((linModel.linModelCoeffs.row(i) * Xc.row(i).transpose())(1, 1) - Yc(i)) / (1.0 - (XcT.row(i).transpose() * Pc * XcT.row(i))(1, 1) + std::numeric_limits<Float>::min());
+					newLinModelError = ((linModel.linModelCoeffs.row(i) * Xc.row(i).transpose())(1, 1) - Yc(i)) / (1.0 - (Xc.row(i) * Pc * Xc.row(i).transpose())(1, 1) + std::numeric_limits<Float>::min());
+					
 					newLinModelError *= newLinModelError;
 					linModelError += newLinModelError;
 				}
@@ -605,10 +624,12 @@ namespace pbrt
 							printf("Nominator / Denominator (prediction error, window size 3): [ %f / %f ]", nominator, denominator);
 						}
 
-						Eigen::MatrixXd tmpn = (XcT.row(i).transpose() * Pc * XcT.row(i));
-						std::cout << "\n\n Error denominator result (matrix): \n" << tmpn << std::endl << std::endl;
+						Eigen::MatrixXd tmpn = (Xc.row(i) * Pc * Xc.row(i).transpose());
+						std::cout << "\n\nZT: " << Xc.row(i) << std::endl;
+						std::cout << "\nZ:   " << Xc.row(i).transpose() << std::endl << std::endl;
+						std::cout << "\n\n Error denominator result (matrix) (Xc.row(i).transpose() * Pc * Xc.row(i)): \n" << tmpn << std::endl << std::endl;
 
-						newLinModelError = ((linModel.linModelCoeffs.row(i) * Xc.row(i).transpose())(1, 1) - Yc(i)) / (1.0 - (XcT.row(i).transpose() * Pc * XcT.row(i))(1, 1) + std::numeric_limits<Float>::min());
+						newLinModelError = ((linModel.linModelCoeffs.row(i) * Xc.row(i).transpose())(1, 1) - Yc(i)) / (1.0 - (Xc.row(i) * Pc * Xc.row(i).transpose())(1, 1) + std::numeric_limits<Float>::min());
 						newLinModelError *= newLinModelError;
 						linModelError += newLinModelError;
 					}
@@ -635,12 +656,11 @@ namespace pbrt
 							Float denominator = (Float)((2 * outerRingLength + 1) * (2 * outerRingLength + 1));
 							if (denominator <= std::numeric_limits<Float>::min())
 							{
-								printf("Nominator / Denominator (prediction error, window size 3): [ %f / %f ]", nominator, denominator);
+								printf("Nominator / Denominator (prediction error, window size %d): [ %f / %f ]", windowSize, nominator, denominator);
 							}
 							
 							//Eigen::MatrixXd tmp = (linModel.linModelCoeffs.row(i)*Xc.row(i).transpose());
 							//std::cout << "\n\n Error update result (matrix): \n" << tmp << std::endl << std::endl;
-							// This might be wrong.
 							Float tmpLinModelError = (linModel.linModelCoeffs.row(i)*Xc.row(i).transpose())(1, 1) - Yc(i);
 							newLinModelError += (tmpLinModelError*tmpLinModelError);
 						}
@@ -684,7 +704,7 @@ namespace pbrt
 
 	void predictionErrorEstimateTest() 
 	{
-		// Sanity test, all valeus of 19x19 matrix are equal. Expected result: Zero, for all window sizes up to fixed window size.
+		// Test, all valeus of 21x21 matrix are equal. Expected result: Zero, for all window sizes up to fixed window size.
 		std::vector<std::vector<rawPixelData>> testAllEqualPixelData = std::vector<std::vector<rawPixelData>>(21, std::vector<rawPixelData>(21, rawPixelData()));
 
 		Float fillVal = 0.0;
@@ -721,6 +741,50 @@ namespace pbrt
 			printf("Sum of all Yc elements: %f\n\n", sumAllElementsOfYc);
 			
 			linModels.push_back(TESTcomputeLinearModelAndPredictionError(i,testAllEqualPixelData,Point2i(10,10)));
+		}
+
+		for (int i = 0; i < linModels.size(); i++)
+		{
+			printf("\n\nLinear model prediction error for window size [ %d ]: [ %f ]\n\n", linModels[i].windowSize, linModels[i].predError);
+		}
+
+		// Test, all valeus of 19x19 matrix are equal. Expected result: Some solution, already tested for solveability.
+
+		std::vector<std::vector<rawPixelData>> testAllEqualPixelData2 = std::vector<std::vector<rawPixelData>>(19, std::vector<rawPixelData>(19, rawPixelData()));
+
+		for (int i = 0; i < 19; i++)
+		{
+			for (int j = 0; j < 19; j++)
+			{
+				testAllEqualPixelData2[i][j].rgb[0] = testM[i * 19 + j];
+				testAllEqualPixelData2[i][j].rgb[1] = testM[i * 19 + j];
+				testAllEqualPixelData2[i][j].rgb[2] = testM[i * 19 + j];
+			}
+		}
+
+		linModels.clear();
+
+		for (int i = 1; i < 18; i += 2)
+		{
+			Float sumAllElementsOfXc = 0;
+			Float sumAllElementsOfYc = 0;
+			Eigen::MatrixXd Xc = constructXc(i, testAllEqualPixelData2, Point2i(10, 10));
+			Eigen::VectorXd Yc = constructYc(i, testAllEqualPixelData2, Point2i(10, 10));
+
+			for (int j = 0; j < Xc.cols()*Xc.rows(); j++)
+			{
+				sumAllElementsOfXc += Xc(j);
+			}
+
+			for (int j = 0; j < Yc.cols()*Yc.rows(); j++)
+			{
+				sumAllElementsOfYc += Yc(j);
+			}
+
+			printf("\n\nSum of all Xc elements: %f\n", sumAllElementsOfXc);
+			printf("Sum of all Yc elements: %f\n\n", sumAllElementsOfYc);
+
+			linModels.push_back(TESTcomputeLinearModelAndPredictionError(i, testAllEqualPixelData2, Point2i(10, 10)));
 		}
 
 		for (int i = 0; i < linModels.size(); i++)

@@ -242,14 +242,22 @@ void SamplerIntegrator::Render(const Scene &scene)
 
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
 
-	camera->film->GetPhysicalExtent().Diagonal();
-
+	//camera->film->GetPhysicalExtent().Diagonal();
+	//Filter* tmpFilter = camera->film->filter.get();
+	//std::unique_ptr<Filter> tmpFilter2 = std::unique_ptr<Filter>(tmpFilter);
+	//debugFilm = std::unique_ptr<Film>(new Film , Film(camera->film->fullResolution, camera->film->croppedPixelBounds, std::unique_ptr<Filter>(tmpFilter),camera->film->diagonal,camera->film->filename,(Float)1.0));
 	
     sampler->InitializeSamplingPlan(camera->film);
-	//sampler->PlannedAdaptiveIterations(2); // Debug!
 
+	bool writeInputImage = true;
     do
     {
+		if (!sampler->samplingPlanner->firstIteration && writeInputImage)
+		{
+			camera->film->WriteImage(1, "InputImage.png");
+			writeInputImage = false;
+		}
+
         sampler->UpdateSamplingPlan(camera->film);
 
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
@@ -335,6 +343,7 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
             VLOG(1) << "Camera sample: " << cameraSample << " -> ray: " << ray << " -> radiance = " << radiance;
 
             // Add camera ray's contribution to image
+			// TODO: For initial rendering remove default filtering.
             filmTile->AddSample(cameraSample.pFilm, radiance, rayWeight);
 
             // Free _MemoryArena_ memory from computing image sample

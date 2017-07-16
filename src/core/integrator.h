@@ -112,6 +112,8 @@ class SamplerIntegrator : public Integrator
     const int tileSize = 16;
     Point2i nTiles;
 
+	//std::unique_ptr<Film> debugFilm;
+
     void CheckRadiance(Spectrum &radiance, const Point2i pixel, const std::unique_ptr<Sampler> &sampler) const;
     Bounds2i BoundsForTile(const Point2i tile) const;
     void RenderTile(const Scene &scene, const Point2i tile) const;
