@@ -72,17 +72,10 @@ namespace pbrt
 
         LOG(INFO) << "filterRadius: " << filterRadius << ", patchRadius: " << patchRadius;
 
-        std::vector<std::vector<std::vector<float>>> filteredBuffer0 = filter->Filter(film, 1, 0, filterRadius, patchRadius);
-        std::vector<std::vector<std::vector<float>>> filteredBuffer1 = filter->Filter(film, 0, 1, filterRadius, patchRadius);
-        
-        for (Point2i position : film->croppedPixelBounds)
-        {
-            Pixel& pixel1 = film->GetPixel(0, position);
-            for (int i = 0; i < 3; i++) pixel1.xyz[i] = filteredBuffer0[position.x][position.y][i] * pixel1.filterWeightSum;
-        
-            Pixel& pixel2 = film->GetPixel(1, position);
-            for (int i = 0; i < 3; i++) pixel2.xyz[i] = filteredBuffer1[position.x][position.y][i] * pixel2.filterWeightSum;
-        }
+        std::vector<std::vector<std::vector<Float>>> filteredBuffer0 = filter->Filter(film->BufferMean(1), film->BufferMean(0), filterRadius, patchRadius);
+        std::vector<std::vector<std::vector<Float>>> filteredBuffer1 = filter->Filter(film->BufferMean(0), film->BufferMean(1), filterRadius, patchRadius);
+        film->WriteToBuffer(0, filteredBuffer0);
+        film->WriteToBuffer(1, filteredBuffer1);
     }
 
     void NLMeansSamplingPlanner::EstimateError(Film * film)

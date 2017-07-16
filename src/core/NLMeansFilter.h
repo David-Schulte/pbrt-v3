@@ -13,16 +13,19 @@ namespace pbrt
 
     class NLMeansFilter
     {
+        using Buffer = std::vector<std::vector<std::vector<Float>>>;
+
     public:
         NLMeansFilter();
         ~NLMeansFilter();
 
-        std::vector<std::vector<std::vector<float>>> Filter(Film * film, int weightSourceBuffer, int filterBuffer, int filterRadius, int patchRadius);
+        std::vector<std::vector<std::vector<Float>>> Filter(const Buffer &weightSourceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius);
+
     protected:
-        std::vector<float> FilterPixel(Film * film, Point2i pixel, int weightSourceBuffer, int filterBuffer, int filterRadius, int patchRadius);
-        float PatchWeight(Film * film, int buffer, Point2i pixel1, Point2i pixel2, int radius, float dampingFactor);
-        float PatchDistance(Film * film, int buffer, Point2i pixel1, Point2i pixel2, int radius);
-        Bounds2i SharedBounds(Film * film, std::vector<Point2i> pixels, int radius);
+        std::vector<Float> FilterPixel(const Point2i &pixel, const Buffer &weightSourceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius);
+        Float PatchWeight(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, int radius, Float dampingFactor);
+        Float PatchDistance(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, int radius);
+        Bounds2i SharedBounds(const Buffer &bounds, const std::vector<Point2i> &pixels, int radius);
     };
 
 }
