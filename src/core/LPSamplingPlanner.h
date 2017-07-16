@@ -41,6 +41,7 @@ namespace pbrt
 		Point2i center;
 		int windowSize;
 		Eigen::VectorXd linModelCoeffs;
+		double nominatorPredError = 0.0;
 		double predError = 0.0;
 	};
 
@@ -76,8 +77,8 @@ namespace pbrt
 		bool finalRender;
 		int64_t numberCoveredPixels;
 
-		LinearModel computeLinearModelAndPredictionError(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
-		void updatePredictionErrorEstimate(LinearModel &linModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd X, Eigen::MatrixXd Y);
+		LinearModel computeLinearModelAndPredictionError(const LinearModel previousLinModel, int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
+		void updatePredictionErrorEstimate(LinearModel &linModel, const LinearModel previousLinModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd Xc, Eigen::MatrixXd Yc);
 		
 		int findMinErrorLinModelIdx(std::vector<LinearModel> linModels, Float minErrorThreshold = 0.000000001);
 		int64_t getPlannedSampleNumber(LinearModel minErrorLinModel, int64_t additionalSampleStep, Float invMinErrorThresholdFactor = 100000000.0);		//Debug! Currently test implementation for matrix inverse computation
