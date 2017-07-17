@@ -9,19 +9,30 @@ namespace pbrt
     NLMeansFilter::NLMeansFilter() {}
     NLMeansFilter::~NLMeansFilter() {}
 
-    std::vector<std::vector<std::vector<Float>>> NLMeansFilter::Filter(const Buffer &weightSourceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius)
+    NLMeansFilter::Buffer NLMeansFilter::Filter(Film * film, int weightSourceBuffer, int filterBuffer, int filterRadius, int patchRadius, Float cancellationFactor, Float dampingFactor)
     {
-        Buffer filteredColors(filterBuffer.size(),                                    //size in 1st dimension
-                              std::vector<std::vector<Float>>(filterBuffer[0].size(), //size in 2nd dimension
-                              std::vector<Float>(3)));                                //3 color values for each pixel
+        Buffer weightSource = film->BufferMean(weightSourceBuffer);
+        Buffer filter = film->BufferMean(filterBuffer);
+
+        Buffer filteredColors(filter.size(),                                    //size in 1st dimension
+                              std::vector<std::vector<Float>>(filter[0].size(), //size in 2nd dimension
+                              std::vector<Float>(3)));                          //3 color values for each pixel
         
         unsigned int startTime = clock();
-        int sizeX = filterBuffer.size();
-        int sizeY = filterBuffer[0].size();
+        int sizeX = filter.size();
+        int sizeY = filter[0].size();
+
+        Buffer varianceEstimation = EstimateVariance(film, weightSourceBuffer, filterBuffer);
+
+        //Debug image
+        film->SetBuffers(film->amountOfBuffers + 1);
+        film->WriteToBuffer(varianceEstimation, film->amountOfBuffers - 1, 1);
+        film->WriteBufferImage("varianceEstimation.exr", film->amountOfBuffers - 1);
+        film->SetBuffers(film->amountOfBuffers - 1);
 
         for (int y = 0; y < sizeY; y++)
             for (int x = 0; x < sizeX; x++)
-                filteredColors[x][y] = FilterPixel(Point2i(x, y), weightSourceBuffer, filterBuffer, filterRadius, patchRadius);
+                filteredColors[x][y] = FilterPixel(Point2i(x, y), weightSource, varianceEstimation, filter, filterRadius, patchRadius, cancellationFactor, dampingFactor);
 
         Float elapsedTime = (Float)(clock() - startTime) / 1000;
         elapsedTime = std::round(elapsedTime * 10) / 10; //Round to one decimal digit
@@ -30,68 +41,52 @@ namespace pbrt
         return filteredColors;
     }
 
-    std::vector<Float> NLMeansFilter::FilterPixel(const Point2i &pixel, const Buffer &weightSourceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius)
+    NLMeansFilter::Buffer NLMeansFilter::EstimateVariance(Film * film, int weightSourceBuffer, int filterBuffer)
     {
-        std::vector<Float> filteredColor(3);
-        Bounds2i bounds = SharedBounds(weightSourceBuffer, std::vector<Point2i>{pixel}, filterRadius);
+        std::vector<std::vector<std::vector<Float>>> bufferMean0 = film->BufferMean(weightSourceBuffer);
+        std::vector<std::vector<std::vector<Float>>> bufferMean1 = film->BufferMean(filterBuffer);
 
-        Float sumOfWeights = 0;
-        for (int y = bounds.pMin.y; y <= bounds.pMax.y; y++)
+        std::vector<std::vector<std::vector<Float>>> bufferVariance0 = film->BufferVariance(weightSourceBuffer);
+        std::vector<std::vector<std::vector<Float>>> bufferVariance1 = film->BufferVariance(filterBuffer);
+
+        int sizeX = bufferMean0.size();
+        int sizeY = bufferMean0[0].size();
+        for (int y = 0; y < sizeY; y++)
         {
-            for (int x = bounds.pMin.x; x <= bounds.pMax.x; x++)
+            for (int x = 0; x < sizeX; x++)
             {
-                Point2i offsetPixel = pixel + Point2i(x,y);
-                Float weight = PatchWeight(weightSourceBuffer, pixel, offsetPixel, patchRadius, 0.2);
-
-                std::vector<Float> offsetColor = filterBuffer[offsetPixel.x][offsetPixel.y];
-                for (int i = 0; i < 3; i++) filteredColor[i] += weight * offsetColor[i];
-
-                sumOfWeights += weight;
-            }
-        }
-
-        for (int i = 0; i < 3; i++) filteredColor[i] /= sumOfWeights;
-        return filteredColor;
-    }
-
-    Float NLMeansFilter::PatchWeight(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, int radius, Float dampingFactor)
-    {
-        //Does not factor in any variance currently
-        Float distance = PatchDistance(buffer, pixel1, pixel2, radius);
-        Float weight = std::exp(-distance / dampingFactor);
-        return weight;
-    }
-
-    Float NLMeansFilter::PatchDistance(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, int radius)
-    {
-        Bounds2i bounds = SharedBounds(buffer, std::vector<Point2i>{pixel1, pixel2}, radius);
-
-        Float sumOfSqrDifferences;
-        int pixelCounter = 0;
-
-        for (int y = bounds.pMin.y; y <= bounds.pMax.y; y++)
-        {
-            for (int x = bounds.pMin.x; x <= bounds.pMax.x; x++)
-            {
-                Point2i offset(x, y);
-                std::vector<Float> color1 = buffer[pixel1.x + offset.x][pixel1.y + offset.y];
-                std::vector<Float> color2 = buffer[pixel2.x + offset.x][pixel2.y + offset.y];
-
-                Float sqrColorDifference[3];
                 for (int i = 0; i < 3; i++)
                 {
-                    sqrColorDifference[i] = color1[i] - color2[i];
-                    sqrColorDifference[i] = sqrColorDifference[i] * sqrColorDifference[i];
+                    //Calculate the buffer differences
+                    Float meanDifference = std::pow((bufferMean0[x][y][i] - bufferMean1[x][y][i]), 2);
+                    Float varianceDifference = bufferVariance0[x][y][i] - bufferVariance1[x][y][i];
 
-                    sumOfSqrDifferences += sqrColorDifference[i];
+                    //Store differences in the buffers (former values will not be used anymore and can safely be overwritten)
+                    bufferMean0[x][y][i] = meanDifference;
+                    bufferVariance0[x][y][i] = varianceDifference;
                 }
-
-                pixelCounter++;
             }
         }
 
-        Float averageSqrDifference = sumOfSqrDifferences / (pixelCounter * 3);
-        return averageSqrDifference;
+        Buffer filteredBufferDifference(bufferMean0.size(),                                    //size in 1st dimension
+                                        std::vector<std::vector<Float>>(bufferMean0[0].size(), //size in 2nd dimension
+                                        std::vector<Float>(3)));                               //3 color values for each pixel
+
+        //bufferMean0 contains now the squared differences of color between buffers
+        //bufferVariance0 contains now the differences of variance between buffers
+
+        //The buffer variance differences are now used as the weight source and variance source to filter the squared buffer color differences 
+        for (int y = 0; y < sizeY; y++)
+            for (int x = 0; x < sizeX; x++)
+                filteredBufferDifference[x][y] = FilterPixel(Point2i(x, y), bufferVariance0, bufferVariance0, bufferMean0, 1, 3, 4, 0.45);
+
+        //Clamp the filtered values to be no higher than the bufferVariance differences
+        for (int y = 0; y < sizeY; y++)
+            for (int x = 0; x < sizeX; x++)
+                for (int i = 0; i < 3; i++)
+                    filteredBufferDifference[x][y][i] = std::min(filteredBufferDifference[x][y][i], bufferVariance0[x][y][i]);
+
+        return filteredBufferDifference;
     }
 
     Bounds2i NLMeansFilter::SharedBounds(const Buffer &bounds, const std::vector<Point2i> &pixels, int radius)
@@ -114,5 +109,101 @@ namespace pbrt
         return sharedBounds;
     }
 
+    NLMeansFilter::Buffer NLMeansFilter::DirectFilter 
+    (const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius, Float cancellationFactor, Float dampingFactor)
+    {
+        Buffer filteredColors(filterBuffer.size(),                                    //size in 1st dimension
+                              std::vector<std::vector<Float>>(filterBuffer[0].size(), //size in 2nd dimension
+                              std::vector<Float>(3)));                                //3 color values for each pixel
+
+        int sizeX = filterBuffer.size();
+        int sizeY = filterBuffer[0].size();
+
+        for (int y = 0; y < sizeY; y++)
+            for (int x = 0; x < sizeX; x++)
+                filteredColors[x][y] = FilterPixel(Point2i(x, y), weightSourceBuffer, weightSourceVarianceBuffer, filterBuffer, filterRadius, patchRadius, cancellationFactor, dampingFactor);
+
+        return filteredColors;
+    }
+
+    std::vector<Float> NLMeansFilter::FilterPixel
+    (const Point2i &pixel, const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius, Float cancellationFactor, Float dampingFactor)
+    {
+        std::vector<Float> filteredColor(3);
+        Bounds2i bounds = SharedBounds(weightSourceBuffer, std::vector<Point2i>{pixel}, filterRadius);
+
+        Float sumOfWeights = 0;
+        for (int y = bounds.pMin.y; y <= bounds.pMax.y; y++)
+        {
+            for (int x = bounds.pMin.x; x <= bounds.pMax.x; x++)
+            {
+                Point2i offsetPixel = pixel + Point2i(x, y);
+                Float weight = PatchWeight(weightSourceBuffer, pixel, offsetPixel, weightSourceVarianceBuffer, patchRadius, cancellationFactor, dampingFactor);
+
+                std::vector<Float> offsetColor = filterBuffer[offsetPixel.x][offsetPixel.y];
+                for (int i = 0; i < 3; i++) filteredColor[i] += weight * offsetColor[i];
+
+                sumOfWeights += weight;
+            }
+        }
+
+        for (int i = 0; i < 3; i++) filteredColor[i] /= sumOfWeights;
+        return filteredColor;
+    }
+
+    Float NLMeansFilter::PatchWeight
+    (const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, const Buffer &varianceBuffer, int radius, Float cancellationFactor, Float dampingFactor)
+    {
+        Float patchDistance = PatchDistance(buffer, pixel1, pixel2, varianceBuffer, radius, cancellationFactor, dampingFactor);
+        Float weight = std::exp(-std::max((Float)0, patchDistance));
+        if (weight < 0.05) weight = 0; //Helps to preserve small details in noisy areas
+
+        return weight;
+    }
+
+    Float NLMeansFilter::PatchDistance
+    (const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, const Buffer &varianceBuffer, int radius, Float cancellationFactor, Float dampingFactor)
+    {
+        Bounds2i bounds = SharedBounds(buffer, std::vector<Point2i>{pixel1, pixel2}, radius);
+
+        Float sumOfDifferences;
+        int pixelCounter = 0;
+
+        for (int y = bounds.pMin.y; y <= bounds.pMax.y; y++)
+        {
+            for (int x = bounds.pMin.x; x <= bounds.pMax.x; x++)
+            {
+                Point2i offset(x, y);
+
+                std::vector<Float> pixelDistance = PixelDistance(buffer, pixel1 + offset, pixel2 + offset, varianceBuffer, cancellationFactor, dampingFactor);
+                sumOfDifferences += (pixelDistance[0] + pixelDistance[1] + pixelDistance[2]) / 3;
+
+                pixelCounter += 1;
+            }
+        }
+
+        Float average = sumOfDifferences / pixelCounter;
+        return average;
+    }
+
+    std::vector<Float> NLMeansFilter::PixelDistance(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, const Buffer &varianceBuffer, Float cancellationFactor, Float dampingFactor)
+    {
+        Float sqrDampingFactor = dampingFactor * dampingFactor;
+
+        std::vector<Float> sqrDistance(3);
+        std::vector<Float> cancellation(3);
+        std::vector<Float> varianceSum(3);
+        std::vector<Float> pixelDistance(3);
+        for (int i = 0; i < 3; i++)
+        {
+            sqrDistance[i] = std::pow((buffer[pixel1.x][pixel1.y][i] - buffer[pixel2.x][pixel2.y][i]), 2);
+            cancellation[i] = cancellationFactor * (varianceBuffer[pixel1.x][pixel1.y][i] + std::min(varianceBuffer[pixel1.x][pixel1.y][i], varianceBuffer[pixel2.x][pixel2.y][i]));
+            varianceSum[i] = varianceBuffer[pixel1.x][pixel1.y][i] + varianceBuffer[pixel2.x][pixel2.y][i];
+
+            pixelDistance[i] = (sqrDistance[i] - cancellation[i]) / (10e-10 + sqrDampingFactor * varianceSum[i]);
+        }
+
+        return pixelDistance;
+    }
 
 }

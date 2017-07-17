@@ -86,7 +86,7 @@ void Sampler::InitializeSamplingPlan(Film *film)
     if (samplingPlanner == nullptr) LOG(FATAL) << "Sampler does not have a samplingPlanner";
 
     samplingPlanner->Initialize(averagePerPixelSampleBudget, film);
-    maxSamplesPerPixel = samplingPlanner->maxSamplesPerPixel;
+    maxSamplesPerPixel = samplingPlanner->maxTotalSamplesPerPixel;
     AdaptToSamplingPlan();
 }
 

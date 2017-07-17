@@ -94,7 +94,7 @@ namespace pbrt
           void MergeFilmTile(std::unique_ptr<FilmTile> tile);
           void SetImage(const Spectrum *img, const int buffer = 0) const;
           void AddSplat(const Point2f &p, Spectrum v, const int buffer = 0); //Used in bdpt and mlt integrators! Maybe it should distribute splats over the buffers instead of defaulting to the first, as with the FilmTiles AddSample method?
-          void WriteToBuffer(int buffer, const std::vector<std::vector<std::vector<Float>>> &valuesXYZ);
+          void WriteToBuffer(const std::vector<std::vector<std::vector<Float>>> &valuesXYZ, int buffer, Float overwriteFilterWeightSum = -1);
           std::vector<std::vector<std::vector<Float>>> BufferMean(int buffer);
           std::vector<std::vector<std::vector<Float>>> BufferVariance(int buffer);
           void WriteVarianceImage(std::string filename, int buffer, Float splatScale = 1);

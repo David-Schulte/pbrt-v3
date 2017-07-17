@@ -27,7 +27,7 @@ namespace pbrt
 
         int currentIteration;
         int plannedIterations;
-        int maxSamplesPerPixel; //For each iteration
+        int maxTotalSamplesPerPixel;
 
     protected:
         std::vector<std::vector<int>> sampleMap;

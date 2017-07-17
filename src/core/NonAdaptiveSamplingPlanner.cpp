@@ -12,7 +12,7 @@ namespace pbrt
 
     void NonAdaptiveSamplingPlanner::UpdateSampleMap(Film * film)
     {
-        FillMapUniformly(sampleMap, maxSamplesPerPixel);
+        FillMapUniformly(sampleMap, maxTotalSamplesPerPixel);
 
 
 
@@ -26,7 +26,7 @@ namespace pbrt
     {
         film->SetBuffers(1);
         plannedIterations = 1;
-        maxSamplesPerPixel = sampleBudgetPerPixel;
+        maxTotalSamplesPerPixel = sampleBudgetPerPixel;
     }
 
 }

@@ -16,15 +16,22 @@ namespace pbrt
 
         DualBufferFiltering(film);
 
-        EstimateError(film);
+        std::vector<std::vector<std::vector<Float>>> estimatedError = EstimateError(film);
+        FillMapErrorProportional(estimatedError);
         //FillMapUniformly(sampleMap, iterationBudgets[currentIteration - 1]);
 
         if (currentIteration > plannedIterations) //Post processing...
         {
             film->WriteBufferImage("buffer1.exr", 0);
             film->WriteBufferImage("buffer2.exr", 1);
-            film->WriteVarianceImage("pixelVariance.exr", 0);
+            film->WriteVarianceImage("buffer1_pixelVariance.exr", 0);
+            film->WriteVarianceImage("buffer2_pixelVariance.exr", 1);
             film->WriteBufferDifferenceImage("bufferDifference.exr", 0, 1);
+
+            film->SetBuffers(film->amountOfBuffers + 1);
+            film->WriteToBuffer(EstimateError(film), film->amountOfBuffers - 1, 1);
+            film->WriteBufferImage("errorEstimation.exr", film->amountOfBuffers - 1);
+            film->SetBuffers(film->amountOfBuffers - 1);
         }
     }
 
@@ -60,7 +67,12 @@ namespace pbrt
 
     void NLMeansSamplingPlanner::PlanMaximalSamplesPerPixel()
     {
-        maxSamplesPerPixel = plannedIterations * iterationBudgetTarget * 20;
+        maxTotalSamplesPerPixel = 0;
+        for (int i = 0; i < iterationBudgets.size(); i++)
+        {
+            maxSampleBudgets.push_back(iterationBudgets[i] * 20);
+            maxTotalSamplesPerPixel += maxSampleBudgets[i];
+        }
     }
 
     void NLMeansSamplingPlanner::DualBufferFiltering(Film * film)
@@ -72,56 +84,101 @@ namespace pbrt
 
         LOG(INFO) << "filterRadius: " << filterRadius << ", patchRadius: " << patchRadius;
 
-        std::vector<std::vector<std::vector<Float>>> filteredBuffer0 = filter->Filter(film->BufferMean(1), film->BufferMean(0), filterRadius, patchRadius);
-        std::vector<std::vector<std::vector<Float>>> filteredBuffer1 = filter->Filter(film->BufferMean(0), film->BufferMean(1), filterRadius, patchRadius);
-        film->WriteToBuffer(0, filteredBuffer0);
-        film->WriteToBuffer(1, filteredBuffer1);
+        std::vector<std::vector<std::vector<Float>>> filteredBuffer0 = filter->Filter(film, 1, 0, filterRadius, patchRadius, 1, 0.4);
+        std::vector<std::vector<std::vector<Float>>> filteredBuffer1 = filter->Filter(film, 0, 1, filterRadius, patchRadius, 1, 0.4);
+        film->WriteToBuffer(filteredBuffer0, 0);
+        film->WriteToBuffer(filteredBuffer1, 1);
     }
 
-    void NLMeansSamplingPlanner::EstimateError(Film * film)
+    std::vector<std::vector<std::vector<Float>>> NLMeansSamplingPlanner::EstimateError(Film * film)
     {
-        std::vector<std::vector<float>> bufferDifference(film->croppedPixelBounds.pMax.x - film->croppedPixelBounds.pMin.x,
-                                                         std::vector<float>(film->croppedPixelBounds.pMax.y - film->croppedPixelBounds.pMin.y));
+        unsigned int startTime = clock();
 
+        std::vector<std::vector<std::vector<Float>>> bufferMean0 = film->BufferMean(0);
+        std::vector<std::vector<std::vector<Float>>> bufferMean1 = film->BufferMean(1);
+        std::vector<std::vector<std::vector<Float>>> bufferMeanDifference = film->BufferMean(0);
+
+        int sizeX = bufferMeanDifference.size();
+        int sizeY = bufferMeanDifference[0].size();
         int pixelCounter = 0;
-        float averageDifference = 0;
-        for (Point2i position : film->croppedPixelBounds)
+        Float averageMeanDifference = 0;
+
+        for (int y = 0; y < sizeY; y++)
         {
-            Pixel& pixel1 = film->GetPixel(0, position);
-            Pixel& pixel2 = film->GetPixel(1, position);
-
-            for (int i = 0; i < 3; i++)
+            for (int x = 0; x < sizeX; x++)
             {
-                float channelDifference = (pixel1.xyz[i] / pixel1.filterWeightSum) - (pixel2.xyz[i] / pixel2.filterWeightSum);
-                channelDifference = std::abs(channelDifference);
-                bufferDifference[position.x][position.y] += channelDifference;
+                for (int i = 0; i < 3; i++)
+                {
+                    //Calculate the buffer differences
+                    Float meanDifference = std::pow((bufferMean0[x][y][i] - bufferMean1[x][y][i]), 2);
+
+                    //Store differences in the buffers (former values will not be used anymore and can safely be overwritten)
+                    bufferMeanDifference[x][y][i] = meanDifference;
+
+                    //Sum values up to get an average later
+                    averageMeanDifference += meanDifference;
+                }
+                pixelCounter += 1;
             }
-            bufferDifference[position.x][position.y] /= 3;
-
-            averageDifference += bufferDifference[position.x][position.y];
-            pixelCounter += 1;
         }
-        averageDifference /= pixelCounter;
+        LOG(INFO) << "Average squared color difference of buffers: " << averageMeanDifference / pixelCounter;
 
-        LOG(INFO) << "Average color difference of buffers: " << averageDifference;
+        //Insert variance canceled sqr differences into the fromer bufferMean vectors, replacing their content
+        for (int y = 0; y < sizeY; y++)
+            for (int x = 0; x < sizeX; x++)
+                for (int i = 0; i < 3; i++)
+                {
+                    bufferMean0[x][y][i] = bufferMeanDifference[x][y][i] / (0.0001 + std::pow(bufferMean0[x][y][i], 2));
+                    bufferMean1[x][y][i] = bufferMeanDifference[x][y][i] / (0.0001 + std::pow(bufferMean1[x][y][i], 2));
+                }
+
+        //Insert the average buffer error (now stored in the bufferMean's) into bufferMeanDifference 
+        for (int y = 0; y < sizeY; y++)
+            for (int x = 0; x < sizeX; x++)
+                for (int i = 0; i < 3; i++)
+                    bufferMeanDifference[x][y][i] = (bufferMean0[x][y][i] + bufferMean1[x][y][i]) / 2;
+
+
+        Float elapsedTime = (Float)(clock() - startTime) / 1000;
+        elapsedTime = std::round(elapsedTime * 10) / 10; //Round to one decimal digit
+        LOG(INFO) << "Error estimation complete, took: " << elapsedTime << " seconds";
+
+        return bufferMeanDifference;
+    }
+
+    void NLMeansSamplingPlanner::FillMapErrorProportional(const std::vector<std::vector<std::vector<Float>>> &error)
+    {
+        int sizeX = sampleMap.size();
+        int sizeY = sampleMap[0].size();
+
+        Float averageError = 0;
+        for (int y = 0; y < sizeY; y++)
+            for (int x = 0; x < sizeX; x++)
+                averageError += (error[x][y][0] + error[x][y][1] + error[x][y][2]) / 3;
+        averageError = averageError / sizeX * sizeY;
 
         int averageFreePixelBudget = iterationBudgets[currentIteration - 1] - 1;
-        float overflow = 0;
-        for (Point2i position : film->croppedPixelBounds)
+        Float overflow = 0;
+        for (int y = 0; y < sizeY; y++)
         {
-            float errorWeight = bufferDifference[position.x][position.y] / averageDifference;
-            float proportionalSamplingRate = errorWeight * averageFreePixelBudget;
-            int flooredSamplingRate = std::floor(proportionalSamplingRate);
-
-            overflow += proportionalSamplingRate - flooredSamplingRate;
-            if (overflow >= 1) //Mathematically ensures that the whole sample budget in this iteration is used up exactly. In reality the last sample may be lost due to inaccurities adding up.
+            for (int x = 0; x < sizeX; x++)
             {
-                flooredSamplingRate += 1;
-                overflow -= 1;
-            }
+                Float currentError = (error[x][y][0] + error[x][y][1] + error[x][y][2]) / 3;
+                Float errorWeight = currentError / averageError;
+                Float proportionalSamplingRate = errorWeight * averageFreePixelBudget;
+                int flooredSamplingRate = std::floor(proportionalSamplingRate);
 
-            //TODO:: A single pixel could potentially eat up all free samples of the whole iteration -> should be limited to a max value (see maxSamplesPerPixel)...
-            sampleMap[position.x][position.y] = flooredSamplingRate + 1; //Use always at least one sample
+                overflow += proportionalSamplingRate - flooredSamplingRate;
+                if (overflow >= 1) //Mathematically ensures that the whole sample budget in this iteration is used up exactly. In reality the last sample may be lost due to inaccurities adding up.
+                {
+                    flooredSamplingRate += 1;
+                    overflow -= 1;
+                }
+
+                //TODO:: Clamping values which are too high is not getting compensated. If clamping occurs, the effective sampling budget will be lower than specified by the user
+                int clampedSamplingRate = std::min(maxSampleBudgets[currentIteration - 1], flooredSamplingRate + 1);
+                sampleMap[x][y] = clampedSamplingRate;
+            }
         }
     }
 

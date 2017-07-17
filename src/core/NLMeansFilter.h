@@ -19,12 +19,18 @@ namespace pbrt
         NLMeansFilter();
         ~NLMeansFilter();
 
-        std::vector<std::vector<std::vector<Float>>> Filter(const Buffer &weightSourceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius);
+        Buffer Filter(Film * film, int weightSourceBuffer, int filterBuffer, int filterRadius, int patchRadius, Float cancellationFactor, Float dampingFactor);
 
     protected:
-        std::vector<Float> FilterPixel(const Point2i &pixel, const Buffer &weightSourceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius);
-        Float PatchWeight(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, int radius, Float dampingFactor);
-        Float PatchDistance(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, int radius);
+
+        Buffer EstimateVariance(Film * film, int weightSourceBuffer, int filterBuffer);
+
+        Buffer DirectFilter(const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius, Float cancellationFactor, Float dampingFactor);
+        std::vector<Float> FilterPixel(const Point2i &pixel, const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Buffer &filterBuffer, int filterRadius, int patchRadius, Float cancellationFactor, Float dampingFactor);
+        Float PatchWeight(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, const Buffer &varianceBuffer, int radius, Float cancellationFactor, Float dampingFactor);
+        Float PatchDistance(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, const Buffer &varianceBuffer, int radius, Float cancellationFactor, Float dampingFactor);
+        std::vector<Float> PixelDistance(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, const Buffer &varianceBuffer, Float cancellationFactor, Float dampingFactor);
+
         Bounds2i SharedBounds(const Buffer &bounds, const std::vector<Point2i> &pixels, int radius);
     };
 

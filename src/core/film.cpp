@@ -228,8 +228,12 @@ void Film::AddSplat(const Point2f &p, Spectrum v, const int buffer)
     for (int i = 0; i < 3; ++i) pixel.splatXYZ[i].Add(xyz[i]);
 }
 
-void Film::WriteToBuffer(int buffer, const std::vector<std::vector<std::vector<Float>>> &valuesXYZ)
+void Film::WriteToBuffer(const std::vector<std::vector<std::vector<Float>>> &valuesXYZ, int buffer, Float overwriteFilterWeightSum)
 {
+    if (overwriteFilterWeightSum > 0)
+        for (Point2i position : croppedPixelBounds)
+            GetPixel(buffer, position).filterWeightSum = overwriteFilterWeightSum;
+
     for (Point2i position : croppedPixelBounds)
     {
         Pixel& pixel = GetPixel(buffer, position);
