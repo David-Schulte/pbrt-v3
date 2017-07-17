@@ -38,6 +38,16 @@ namespace pbrt
     void NLMeansSamplingPlanner::CreateSamplingPlan(Film *film)
     {
         filter = std::make_shared<NLMeansFilter>();
+        int minDimension = std::min(film->croppedPixelBounds.pMax.x - film->croppedPixelBounds.pMin.x,
+                                    film->croppedPixelBounds.pMax.y - film->croppedPixelBounds.pMin.y);
+        float filterRadius = std::ceil(std::sqrt(minDimension) / 10);
+        float patchRadius = std::ceil(filterRadius / 2);
+        filter->filterRadius = filterRadius;
+        filter->patchRadius = patchRadius;
+        filter->cancellationFactor = 1;
+        filter->dampingFactor = 0.4;
+        LOG(INFO) << "NLMeansFilter filterRadius: " << filter->filterRadius << ", patchRadius: " << filter->patchRadius << ", cancellationFactor: " << filter->cancellationFactor << ", dampingFactor: " << filter->dampingFactor;
+
         film->SetBuffers(2);
         PlanIterations();
         PlanMaximalSamplesPerPixel();
@@ -77,17 +87,16 @@ namespace pbrt
 
     void NLMeansSamplingPlanner::DualBufferFiltering(Film * film)
     {
-        int minDimension = std::min(film->croppedPixelBounds.pMax.x - film->croppedPixelBounds.pMin.x, 
-                                    film->croppedPixelBounds.pMax.y - film->croppedPixelBounds.pMin.y);
-        float filterRadius = std::ceil(std::sqrt(minDimension) / 10);
-        float patchRadius = std::ceil(filterRadius / 2);
+        unsigned int startTime = clock();
 
-        LOG(INFO) << "filterRadius: " << filterRadius << ", patchRadius: " << patchRadius;
-
-        std::vector<std::vector<std::vector<Float>>> filteredBuffer0 = filter->Filter(film, 1, 0, filterRadius, patchRadius, 1, 0.4);
-        std::vector<std::vector<std::vector<Float>>> filteredBuffer1 = filter->Filter(film, 0, 1, filterRadius, patchRadius, 1, 0.4);
+        std::vector<std::vector<std::vector<Float>>> filteredBuffer0 = filter->Filter(film, 1, 0);
+        std::vector<std::vector<std::vector<Float>>> filteredBuffer1 = filter->Filter(film, 0, 1);
         film->WriteToBuffer(filteredBuffer0, 0);
         film->WriteToBuffer(filteredBuffer1, 1);
+
+        Float elapsedTime = (Float)(clock() - startTime) / 1000;
+        elapsedTime = std::round(elapsedTime * 10) / 10; //Round to one decimal digit
+        LOG(INFO) << "Dual-Buffer filtering complete, took: " << elapsedTime << " seconds";
     }
 
     std::vector<std::vector<std::vector<Float>>> NLMeansSamplingPlanner::EstimateError(Film * film)
@@ -138,6 +147,21 @@ namespace pbrt
                 for (int i = 0; i < 3; i++)
                     bufferMeanDifference[x][y][i] = (bufferMean0[x][y][i] + bufferMean1[x][y][i]) / 2;
 
+        //TODO:: It is not clear which buffers are to be used in the following two steps...
+        //Weight all the estimated values by how much contribution they give to their surrounding pixels and store result in bufferMean0's first Float value
+        std::vector<std::vector<std::vector<Float>>> varianceBuffer = film->BufferVariance(0); //TODO:: Should probably use the variance as an average of both buffers?
+        for (int y = 0; y < sizeY; y++)
+            for (int x = 0; x < sizeX; x++)
+            {
+                Float weight = filter->PixelWeightSum(bufferMeanDifference, Point2i(x, y), varianceBuffer); //TODO:: Are these buffers the right ones to use?
+                bufferMean0[x][y][0] = weight;
+            }
+
+        //Apply the calculated weights (which are now stored in the bufferMean0's first Float value) to the average buffer error
+        for (int y = 0; y < sizeY; y++)
+            for (int x = 0; x < sizeX; x++)
+                for (int i = 0; i < 3; i++)
+                    bufferMeanDifference[x][y][i] *= bufferMean0[x][y][0];
 
         Float elapsedTime = (Float)(clock() - startTime) / 1000;
         elapsedTime = std::round(elapsedTime * 10) / 10; //Round to one decimal digit
