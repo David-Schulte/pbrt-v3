@@ -244,15 +244,7 @@ void SamplerIntegrator::Render(const Scene &scene)
 
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
 
-	//camera->film->GetPhysicalExtent().Diagonal();
-	//Filter* tmpFilter = camera->film->filter.get();
-	//std::unique_ptr<Filter> tmpFilter2 = std::unique_ptr<Filter>(tmpFilter);
-	//debugFilm = std::unique_ptr<Film>(new Film , Film(camera->film->fullResolution, camera->film->croppedPixelBounds, std::unique_ptr<Filter>(tmpFilter),camera->film->diagonal,camera->film->filename,(Float)1.0));
-	
-	//pbrt::WriteImage(,,,camera->film->croppedPixelBounds());
-
     sampler->InitializeSamplingPlan(camera->film);
-
 	bool writeInputImage = true;
     do
     {
@@ -261,25 +253,20 @@ void SamplerIntegrator::Render(const Scene &scene)
 			camera->film->WriteImage(1, "InputImage.png");
 			writeInputImage = false;
 		}
-
+		
         sampler->UpdateSamplingPlan(camera->film);
-
         ParallelFor2D([&](Point2i tile) // Render section of image corresponding to _tile_
         {
             //Render tiles for each buffer
             RenderTile(scene, tile);
-
             //reporter.Update();
         }, nTiles);
 
 		sampler->UpdateCurrentSampleNumberMap();
-		//camera->film->;
     } 
     while (sampler->StartNextIteration());
-
     reporter.Done();
     LOG(INFO) << "Rendering finished";
-
     camera->film->WriteImage();
 }
 
@@ -306,17 +293,12 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
 
     // Get _FilmTile_ for tile
     std::unique_ptr<FilmTile> filmTile = camera->film->GetFilmTile(tileBounds);
-
     // Loop over pixels in tile to render them
     for (Point2i pixel : tileBounds)
     {
         {
             ProfilePhase pp(Prof::StartPixel);
             tileSampler->StartPixel(pixel);
-			//if (pixel.x<0||pixel.y<0)
-			//{
-			//	printf("pixel x,y: [%i,%i]\n", pixel.x, pixel.y);
-			//}
         }
 
         // Do this check after the StartPixel() call; this keeps
@@ -325,37 +307,30 @@ void SamplerIntegrator::RenderTile(const Scene &scene, const Point2i tile) const
         // debugging.
         // Checks if the pixel is inside bounds...
         if (!InsideExclusive(pixel, pixelBounds)) continue;
-
         do
         {
             // Initialize _CameraSample_ for current sample
             CameraSample cameraSample = tileSampler->GetCameraSample(pixel);
-
             // Generate camera ray for current sample
             RayDifferential ray;
             Float rayWeight = camera->GenerateRayDifferential(cameraSample, &ray);
             //ray.ScaleDifferentials(1 / std::sqrt((Float)tileSampler->maxSamplesPerPixel));
 			ray.ScaleDifferentials(1 / std::sqrt((Float)sampler->samplingPlanner->PlannedSamples(pixel)));
             ++nCameraRays;
-
             // Evaluate radiance along camera ray
             Spectrum radiance(0.f);
             if (rayWeight > 0) radiance = Li(ray, scene, *tileSampler, arena);
-
             CheckRadiance(radiance, pixel, tileSampler); // Ensure radiance is within limits and valid
 
             VLOG(1) << "Camera sample: " << cameraSample << " -> ray: " << ray << " -> radiance = " << radiance;
-
             // Add camera ray's contribution to image
 			// TODO: For initial rendering remove default filtering.
             filmTile->AddSample(cameraSample.pFilm, radiance, rayWeight);
-
             // Free _MemoryArena_ memory from computing image sample
             // value
             arena.Reset();
         } while (tileSampler->StartNextSample());
     }
-
     LOG(INFO) << "Finished image tile " << tileBounds;
 
     // Merge image tile into _Film_

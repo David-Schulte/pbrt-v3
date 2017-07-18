@@ -24,8 +24,8 @@ namespace pbrt
         virtual bool StartNextIteration();
 		void setInitialRenderSamples(int initialSamplesPerPixel) {initialRenderSamplesPerPixels = initialSamplesPerPixel;}
 
-        const int PlannedSamples(const Point2i &pixel) { return plannedSampleMap[pixel.x+2][pixel.y+2]; }
-		const int CurrentSampleNumber(const Point2i &pixel) { return currentSampleNumberMap[pixel.x + 2][pixel.y + 2]; }
+        const int PlannedSamples(const Point2i &pixel) { return plannedSampleMap[pixel.x + filmExtentResDiff/2][pixel.y + filmExtentResDiff/2]; }
+		const int CurrentSampleNumber(const Point2i &pixel) { return currentSampleNumberMap[pixel.x + filmExtentResDiff/2][pixel.y + filmExtentResDiff/2]; }
 
 		void PlannedAdaptiveIterations(int plannedAdaptiveIterations) { this->plannedAdaptiveIterations = plannedAdaptiveIterations; }
 
@@ -44,7 +44,7 @@ namespace pbrt
 
         virtual void CreateSamplingPlan(int samplesPerPixel, Film *film) = 0;
         void CreateSampleMap(Film *film);
-		
+		int64_t filmExtentResDiff;
     };
 
 }

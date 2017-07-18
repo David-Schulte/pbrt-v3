@@ -46,6 +46,7 @@ namespace pbrt
 			Vector2i sampleExtent = sampleBounds.Diagonal();
 			plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y, 0));
 			temp_plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y, 0));
+			coverageMask = std::vector<std::vector<vector_bool>>(sampleExtent.x, std::vector<vector_bool>(sampleExtent.y, vector_bool()));
 
 			//get center pixels
 			grid.margin = computeMargin(film);
@@ -91,9 +92,9 @@ namespace pbrt
 		}
 
 		//grid.margin = computeMargin(film);
-		for (int row = (grid.granularity / 2)+2+ grid.margin.x; row < plannedSampleMap.size()-2; row += grid.granularity)
+		for (int row = (grid.granularity / 2) + filmExtentResDiff/2 + grid.margin.x; row < plannedSampleMap.size() - filmExtentResDiff/2; row += grid.granularity)
 		{
-			for (int column = (grid.granularity / 2)+2+ grid.margin.y; column < plannedSampleMap[0].size()-2; column += grid.granularity)
+			for (int column = (grid.granularity / 2) + filmExtentResDiff/2 + grid.margin.y; column < plannedSampleMap[0].size()- filmExtentResDiff/2; column += grid.granularity)
 			{
 				//printf("Current center pixel: %d %d \n", row-2, column-2);
 				if (coverageMask[row][column].value) //center pixel is already covered
@@ -107,7 +108,7 @@ namespace pbrt
 
 				LinearModel minErrorLinModel;
 				//for pixels that are part of the image but the kOpt window reaches over the border -> add coverage but dont add additional samples
-				if (!(row - grid.fixedWindowSize / 2 < 2 || row + grid.fixedWindowSize / 2 > plannedSampleMap.size() - 3 || column - grid.fixedWindowSize / 2 < 2 || column + grid.fixedWindowSize / 2 > plannedSampleMap[0].size() - 3))
+				if (!(row - grid.fixedWindowSize / 2 < filmExtentResDiff/2 || row + grid.fixedWindowSize / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff/2 || column - grid.fixedWindowSize / 2 < filmExtentResDiff/2 || column + grid.fixedWindowSize / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff/2))
 				{
 					std::vector<LinearModel> linModels;
 					linModels.clear();
@@ -124,18 +125,17 @@ namespace pbrt
 							//printf("\n\nLinear models not empty!!!\n\n");
 							//printf("\n\nPrevios linear models error: %f\n\n", linModels.back().predError);
 							//printf("\n\nPrevios nominator linear models error: %f\n\n", linModels.back().nominatorPredError);
-							linModels.push_back(computeLinearModelAndPredictionError(linModels.back(), adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2)));
+							linModels.push_back(computeLinearModelAndPredictionError(linModels.back(), adaptiveWindowSize, initialRenderFilm, Point2i(row - filmExtentResDiff/2, column - filmExtentResDiff/2)));
 						}
 						else
 						{
-							linModels.push_back(computeLinearModelAndPredictionError(LinearModel(), adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2)));
+							linModels.push_back(computeLinearModelAndPredictionError(LinearModel(), adaptiveWindowSize, initialRenderFilm, Point2i(row - filmExtentResDiff/2, column - filmExtentResDiff/2)));
 						}
 					}
 					int minErrorLinModelIdx = findMinErrorLinModelIdx(linModels);
 					minErrorLinModel = linModels[minErrorLinModelIdx];
 					kOpt = minErrorLinModel.windowSize;
 				}
-
 				for (int x = row - kOpt / 2; x <= row + kOpt / 2; x++)
 				{
 					for (int y = column - kOpt / 2; y <= column + kOpt / 2; y++)
@@ -143,7 +143,7 @@ namespace pbrt
 						//printf("\nCenter pixel: [%d,%d]\n", row, column);
 						//printf("Current pixel to render with adaptive samples: [%d,%d]\n\n", x, y);
 						//printf("Current pixel in kOpt window: % d %d \n .", x-2, y-2);
-						if (x < 2 || x > plannedSampleMap.size() - 1 - 2 || y < 2 || y > plannedSampleMap[0].size() - 1 - 2)
+						if (x < filmExtentResDiff/2 || x > plannedSampleMap.size() - 1 - filmExtentResDiff/2 || y < filmExtentResDiff/2 || y > plannedSampleMap[0].size() - 1 - filmExtentResDiff/2)
 						{
 							//printf("x or y outside of image \n");
 							continue; //ignore pixels that are not part of the real image
@@ -151,7 +151,7 @@ namespace pbrt
 							
 
 						//for pixels that are part of the image but the kOpt window reaches over the border -> add coverage but dont add additional samples
-						if (row - kOpt / 2 < 2 || row + kOpt / 2 > plannedSampleMap.size() - 3 || column - kOpt / 2 < 2 || column + kOpt / 2 > plannedSampleMap[0].size() - 3)
+						if (row - kOpt / 2 < filmExtentResDiff/2 || row + kOpt / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff/2 || column - kOpt / 2 < filmExtentResDiff/2 || column + kOpt / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff/2)
 						{
 							//printf("x or y inside image but kOpt window outside \n");
 							if (coverageMask[x][y].value)
@@ -159,7 +159,6 @@ namespace pbrt
 								//printf("xy already covered \n");
 								continue;
 							}
-							
 							numberCoveredPixels++;
 							coverageMask[x][y].value = true;
 							coverageMask[x][y].coverageCounter++;
@@ -171,7 +170,6 @@ namespace pbrt
 						if (coverageMask[x][y].value == false)
 						{
 						//	printf("xy now covered and got samples \n");
-							
 							numberCoveredPixels++;
 							coverageMask[x][y].value = true;
 							//printf("\n number covered pixels: %d \n", numberCoveredPixels);
@@ -181,7 +179,6 @@ namespace pbrt
 						//printf("xy already covered \n");
 						//printf("\n pixel covered by multiple models \n");
 						//TODO: what to do if a pixel is covered by multiple linear models?
-						
 					}
 				}
 			}
@@ -209,7 +206,6 @@ namespace pbrt
 			//}
 		
 
-		
 	}
 
 	void LPSamplingPlanner::CreateSamplingPlan(int samplesPerPixel, Film * film)
@@ -227,8 +223,8 @@ namespace pbrt
 		rawPixelData initValues = rawPixelData();
 		initialRenderFilm = std::vector<std::vector<rawPixelData>>(film->fullResolution.x, std::vector<rawPixelData>(film->fullResolution.y, initValues));
 
-		Float maxColorChannelRGBVal = std::numeric_limits<Float>::min();
-		Float maxColorChannelXYZVal = std::numeric_limits<Float>::min();
+		//Float maxColorChannelRGBVal = std::numeric_limits<Float>::min();
+		//Float maxColorChannelXYZVal = std::numeric_limits<Float>::min();
 
 		for (int row = 0; row < film->fullResolution.x; row++)
 		{
@@ -242,7 +238,7 @@ namespace pbrt
 				initialRenderFilm[row][column].rgb[0] = clamp(rgb[0], 0, std::numeric_limits<Float>::max());
 				initialRenderFilm[row][column].rgb[1] = clamp(rgb[1], 0, std::numeric_limits<Float>::max());
 				initialRenderFilm[row][column].rgb[2] = clamp(rgb[2], 0, std::numeric_limits<Float>::max());
-				
+				/*
 				if (rgb[0] > maxColorChannelRGBVal)
 				{ 
 					maxColorChannelRGBVal = rgb[0];
@@ -267,14 +263,14 @@ namespace pbrt
 				if (initialRenderFilm[row][column].xyz[2] > maxColorChannelXYZVal)
 				{
 					maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[2];
-				}
+				}*/
 				//printf("\n\nInitial RGB values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].rgb[0], initialRenderFilm[row][column].rgb[1], initialRenderFilm[row][column].rgb[2]);
 				//printf("\n\nInitial XYZ values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].xyz[0], initialRenderFilm[row][column].xyz[1], initialRenderFilm[row][column].xyz[2]);
 				delete[] rgb;
 			}
 		}
-		printf("\n\nMaximum color channel RGB value: %f\n\n", maxColorChannelRGBVal);
-		printf("\nMaximum color channel XYZ value: %f\n\n", maxColorChannelXYZVal);
+		//printf("\n\nMaximum color channel RGB value: %f\n\n", maxColorChannelRGBVal);
+		//printf("\nMaximum color channel XYZ value: %f\n\n", maxColorChannelXYZVal);
 	}
 
 	Point2i LPSamplingPlanner::computeMargin(Film * film)
@@ -312,7 +308,6 @@ namespace pbrt
 			plannedSampleNumber *= additionalSampleStep;
 			tmpModifiedError /= 100.0;
 		}
-
 		return plannedSampleNumber;
 	}
 
@@ -427,7 +422,7 @@ namespace pbrt
 		//  If first prediction error.
 		if (windowSize == 1)
 		{
-			linModelError = linModel.linModelCoeffs(1, 1)*Xc(1, 1) + linModel.linModelCoeffs(1, 2)*Xc(1, 2);
+			linModelError = linModel.linModelCoeffs(0, 0)*Xc(0, 0) + linModel.linModelCoeffs(0, 1)*Xc(0, 1);
 		}
 		else
 			//  If second prediction error.
@@ -485,9 +480,9 @@ namespace pbrt
 					linModelError = previousLinModel.nominatorPredError;
 					int r = (windowSize / 2);
 
-					printf("\n//////////////////////////////////////////////////////////////////////////////\n");
-					printf("Previous linear model [prediction error , current adaptive window size]: [%f , %d]\n", linModelError, windowSize);
-					printf("//////////////////////////////////////////////////////////////////////////////\n");
+					//printf("\n//////////////////////////////////////////////////////////////////////////////\n");
+					//printf("Previous linear model [prediction error , current adaptive window size]: [%f , %d]\n", linModelError, windowSize);
+					//printf("//////////////////////////////////////////////////////////////////////////////\n");
 
 					for (int i = 0; i < (windowSize * windowSize - 1); i++)
 					{
@@ -500,7 +495,7 @@ namespace pbrt
 							//Float nominator = (linModel.linModelCoeffs.row(i)*Xc.row(i).transpose())(0, 0) - Yc(i);
 							//Float denominator = (Float)((2 * outerRingLength + 1) * (2 * outerRingLength + 1));
 
-							std::cout << "\n\n previousLinModel.linModelCoeffs.transpose(): \n" << previousLinModel.linModelCoeffs.transpose() << std::endl << std::endl;
+							//std::cout << "\n\n previousLinModel.linModelCoeffs.transpose(): \n" << previousLinModel.linModelCoeffs.transpose() << std::endl << std::endl;
 							//std::cout << "\n\n Xc.row(" << i << ").transpose(): \n" << Xc.row(i).transpose() << std::endl << std::endl;
 							//std::cout << "\n\n Yc(" << i << "): \n" << Yc(i) << std::endl << std::endl;
 
