@@ -81,10 +81,8 @@ MaxMinDistSampler *CreateMaxMinDistSampler(const ParamSet &params) {
     int sd = params.FindOneInt("dimensions", 4);
     if (PbrtOptions.quickRender) nsamp = 1;
 
-    MaxMinDistSampler *sampler = new MaxMinDistSampler(nsamp, sd);
-
-    std::string samplingPlannerName = params.FindOneString("samplingplanner", "nonadaptive");
-    sampler->AddSamplingPlanner(samplingPlannerName);
+    MaxMinDistSampler *sampler = new MaxMinDistSampler(nsamp, sd); 
+    sampler->AddSamplingPlanner(params);
 
     return sampler;
 }

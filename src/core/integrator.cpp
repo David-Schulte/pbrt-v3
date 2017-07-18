@@ -263,6 +263,7 @@ void SamplerIntegrator::Render(const Scene &scene)
     while (sampler->StartNextIteration());
 
     LOG(INFO) << " "; //Adding some visual structure to the log file
+    LOG(INFO) << "Starting post processing";
     sampler->UpdateSamplingPlan(camera->film); //Enable the sampler and SamplingPlanner to post process the rendering result
     reporter.Update();
 

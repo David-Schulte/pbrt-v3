@@ -84,9 +84,7 @@ StratifiedSampler *CreateStratifiedSampler(const ParamSet &params) {
     if (PbrtOptions.quickRender) xsamp = ysamp = 1;
 
     StratifiedSampler *sampler = new StratifiedSampler(xsamp, ysamp, jitter, sd);
-
-    std::string samplingPlannerName = params.FindOneString("samplingplanner", "nonadaptive");
-    sampler->AddSamplingPlanner(samplingPlannerName);
+    sampler->AddSamplingPlanner(params);
 
     return sampler;
 }

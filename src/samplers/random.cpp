@@ -75,9 +75,7 @@ Sampler *CreateRandomSampler(const ParamSet &params) {
     int ns = params.FindOneInt("pixelsamples", 4);
 
     RandomSampler *sampler = new RandomSampler(ns);;
-
-    std::string samplingPlannerName = params.FindOneString("samplingplanner", "nonadaptive");
-    sampler->AddSamplingPlanner(samplingPlannerName);
+    sampler->AddSamplingPlanner(params);
 
     return sampler;
 }

@@ -73,10 +73,21 @@ bool Sampler::StartNextSample()
     return currentPixelSampleIndex < samplesNeeded;
 }
 
-void Sampler::AddSamplingPlanner(std::string name)
+void Sampler::AddSamplingPlanner(const ParamSet &params)
 {
+    std::string name = params.FindOneString("samplingplanner", "nonadaptive");
+
     if (name == "nonadaptive") samplingPlanner = std::shared_ptr<SamplingPlanner>(new NonAdaptiveSamplingPlanner());
-    else if (name == "nlmeans") samplingPlanner = std::shared_ptr<SamplingPlanner>(new NLMeansSamplingPlanner());
+    else if (name == "nlmeans") 
+    { 
+        int initialBudget = params.FindOneInt("initialbudget", 10);
+        int iterationBudget = params.FindOneInt("iterationbudget", 10);
+        int filterRadius = params.FindOneInt("filterradius", 7);
+        int patchRadius = params.FindOneInt("patchradius", 3);
+        Float cancellationFactor = params.FindOneFloat("cancellationfactor", 1);
+        Float dampingFactor = params.FindOneFloat("dampingfactor", 0.4);
+        samplingPlanner = std::shared_ptr<SamplingPlanner>(new NLMeansSamplingPlanner(initialBudget, iterationBudget, filterRadius, patchRadius, cancellationFactor, dampingFactor));
+    }
     else LOG(FATAL) << "Sampler: AddSamplingPlanner: Given name is undefined!";
 }
 

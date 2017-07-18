@@ -55,7 +55,7 @@ namespace pbrt
         Buffer weightSource = film->BufferXYZ(weightSourceBuffer);
         Buffer varianceEstimation = EstimateVariance(film, filterSourceBuffer, weightSourceBuffer);
 
-        film->WriteBufferImage("varianceEstimation.exr", varianceEstimation); //Write estimated variance to file
+        film->WriteBufferImage("nlmeans varianceEstimation.exr", varianceEstimation); //Write estimated variance to file
 
         int sizeX = filterSource.size();
         int sizeY = filterSource[0].size();

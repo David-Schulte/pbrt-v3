@@ -85,9 +85,7 @@ ZeroTwoSequenceSampler *CreateZeroTwoSequenceSampler(const ParamSet &params) {
     if (PbrtOptions.quickRender) nsamp = 1;
 
     ZeroTwoSequenceSampler *sampler = new ZeroTwoSequenceSampler(nsamp, sd);
-
-    std::string samplingPlannerName = params.FindOneString("samplingplanner", "nonadaptive");
-    sampler->AddSamplingPlanner(samplingPlannerName);
+    sampler->AddSamplingPlanner(params);
 
     return sampler;
 }

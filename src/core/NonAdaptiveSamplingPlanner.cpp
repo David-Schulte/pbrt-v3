@@ -18,7 +18,7 @@ namespace pbrt
 
         if (currentIteration > plannedIterations) //Post processing...
         {
-            film->WriteBufferImage("pixelVariance.exr", film->BufferVariance(0));
+            film->WriteBufferImage("nonadaptive pixel variance.exr", film->BufferVariance(0));
         }
     }
 

@@ -7,7 +7,15 @@
 namespace pbrt
 {
 
-    NLMeansSamplingPlanner::NLMeansSamplingPlanner() {}
+    NLMeansSamplingPlanner::NLMeansSamplingPlanner(int initialBudget, int iterationBudget, int filterRadius, int patchRadius, Float cancellationFactor, Float dampingFactor) 
+    { 
+        NLMeansSamplingPlanner::initialBudget = initialBudget;
+        NLMeansSamplingPlanner::iterationBudget = iterationBudget;
+        filter = std::make_shared<NLMeansFilter>(); 
+        filter->SetParameters(filterRadius, patchRadius, cancellationFactor, dampingFactor);
+        LOG(INFO) << "NLMeansFilter filterRadius: " << filterRadius << ", patchRadius: " << patchRadius << ", cancellationFactor: " << cancellationFactor << ", dampingFactor: " << dampingFactor;
+    }
+
     NLMeansSamplingPlanner::~NLMeansSamplingPlanner() {}
 
     void NLMeansSamplingPlanner::UpdateSampleMap(Film * film)
@@ -22,31 +30,19 @@ namespace pbrt
 
         if (currentIteration > plannedIterations) //Post processing...
         {
-            film->WriteBufferImage("buffer1.exr", 0);
-            film->WriteBufferImage("buffer2.exr", 1);
-            film->WriteBufferImage("buffer1_pixelVariance.exr", film->BufferVariance(0));
-            film->WriteBufferImage("buffer2_pixelVariance.exr", film->BufferVariance(1));
-            film->WriteBufferDifferenceImage("bufferDifference.exr", 0, 1);
+            film->WriteBufferImage("nlmeans buffer1_pixelVariance.exr", film->BufferVariance(0));
+            film->WriteBufferImage("nlmeans buffer2_pixelVariance.exr", film->BufferVariance(1));
+            film->WriteBufferDifferenceImage("nlmeans bufferDifference.exr", 0, 1);
 
             film->SetBuffers(film->amountOfBuffers + 1);
             film->WriteToBuffer(estimatedError, film->amountOfBuffers - 1, 1);
-            film->WriteBufferImage("errorEstimation.exr", film->amountOfBuffers - 1);
+            film->WriteBufferImage("nlmeans errorEstimation.exr", film->amountOfBuffers - 1);
             film->SetBuffers(film->amountOfBuffers - 1);
         }
     }
 
     void NLMeansSamplingPlanner::CreateSamplingPlan(Film *film)
     {
-        filter = std::make_shared<NLMeansFilter>();
-        int minDimension = std::min(film->croppedPixelBounds.pMax.x - film->croppedPixelBounds.pMin.x,
-                                    film->croppedPixelBounds.pMax.y - film->croppedPixelBounds.pMin.y);
-        int filterRadius = std::ceil(std::sqrt(minDimension) / 10);
-        int patchRadius = std::ceil(filterRadius / 2);
-        Float cancellationFactor = 1;
-        Float dampingFactor = 0.4;
-        filter->SetParameters(filterRadius, patchRadius, cancellationFactor, dampingFactor);
-        LOG(INFO) << "NLMeansFilter filterRadius: " << filterRadius << ", patchRadius: " << patchRadius << ", cancellationFactor: " << cancellationFactor << ", dampingFactor: " << dampingFactor;
-
         film->SetBuffers(2);
         PlanIterations();
         PlanMaximalSamplesPerPixel();
@@ -58,15 +54,15 @@ namespace pbrt
         iterationBudgets.clear();
         plannedIterations = 1;
 
-        iterationBudgets.push_back(std::min(budgetLeft, initialBudgetTarget)); //Initial sampling will be done with the target budget unless the user specified to use less samples than that
-        budgetLeft -= initialBudgetTarget;
+        iterationBudgets.push_back(std::min(budgetLeft, initialBudget)); //Initial sampling will be done with the target budget unless the user specified to use less samples than that
+        budgetLeft -= initialBudget;
         if (budgetLeft < 0) return; //If the budget is already exhausted stop here
 
-        while (budgetLeft > iterationBudgetTarget)
+        while (budgetLeft > iterationBudget)
         {
             plannedIterations += 1;
-            iterationBudgets.push_back(iterationBudgetTarget);
-            budgetLeft -= iterationBudgetTarget;
+            iterationBudgets.push_back(iterationBudget);
+            budgetLeft -= iterationBudget;
         }
 
         plannedIterations += 1;
@@ -104,6 +100,8 @@ namespace pbrt
 
         Buffer buffer0XYZ = film->BufferXYZ(0);
         Buffer buffer1XYZ = film->BufferXYZ(1);
+        Buffer buffer0Error = film->BufferEmpty();
+        Buffer buffer1Error = film->BufferEmpty();
 
         int sizeX = buffer0XYZ.size();
         int sizeY = buffer0XYZ[0].size();
@@ -123,21 +121,15 @@ namespace pbrt
                     Float squaredColor1 = std::pow(buffer1XYZ[x][y][i], 2);
 
                     //Calculate the variance cancelled error values for the buffers
-                    Float buffer0Error = squaredColorDifference / (squaredColor0 + 10e-3);
-                    Float buffer1Error = squaredColorDifference / (squaredColor1 + 10e-3);
+                    Float error0 = squaredColorDifference / (squaredColor0 + 10e-3);
+                    Float error1 = squaredColorDifference / (squaredColor1 + 10e-3);
 
                     //Store the average error in buffer0XYZ, which can now be safely overwritten
-                    buffer0XYZ[x][y][i] = buffer0Error;
-                    buffer1XYZ[x][y][i] = buffer1Error;
+                    buffer0Error[x][y][i] = error0;
+                    buffer1Error[x][y][i] = error1;
                 }
             }
         }
-
-        //buffer0XYZ had its values overwritten and now holds the error values of it's buffer
-        //buffer1XYZ had its values overwritten and now holds the error values of it's buffer
-        //Just renaming them here to clarify intent!
-        Buffer &buffer0Error = buffer0XYZ;
-        Buffer &buffer1Error = buffer1XYZ;
 
         //Weight all the estimated values by how much contribution they give to their surrounding pixels and store result in bufferMean0's first Float value
         Buffer buffer0Variance = film->BufferVariance(0);
@@ -150,8 +142,8 @@ namespace pbrt
         {
             for (int x = 0; x < sizeX; x++)
             {
-                Float weight0 = filter->FilterWeightSum(buffer0Error, buffer0Variance, Point2i(x, y)); //TODO:: Are these buffers the right ones to use?
-                Float weight1 = filter->FilterWeightSum(buffer1Error, buffer1Variance, Point2i(x, y)); //TODO:: Are these buffers the right ones to use?
+                Float weight0 = filter->FilterWeightSum(buffer0XYZ, buffer0Variance, Point2i(x, y)); //TODO:: Are these buffers the right ones to use?
+                Float weight1 = filter->FilterWeightSum(buffer1XYZ, buffer1Variance, Point2i(x, y)); //TODO:: Are these buffers the right ones to use?
                 weight0 /= (buffer0Weights[x][y][0] + 1);
                 weight1 /= (buffer1Weights[x][y][0] + 1);
 

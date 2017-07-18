@@ -68,9 +68,7 @@ SobolSampler *CreateSobolSampler(const ParamSet &params,
     if (PbrtOptions.quickRender) nsamp = 1;
 
     SobolSampler *sampler = new SobolSampler(nsamp, sampleBounds);
-
-    std::string samplingPlannerName = params.FindOneString("samplingplanner", "nonadaptive");
-    sampler->AddSamplingPlanner(samplingPlannerName);
+    sampler->AddSamplingPlanner(params);
 
     return sampler;
 }

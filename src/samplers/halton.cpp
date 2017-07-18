@@ -137,9 +137,7 @@ HaltonSampler *CreateHaltonSampler(const ParamSet &params,
     bool sampleAtCenter = params.FindOneBool("samplepixelcenter", false);
 
     HaltonSampler *sampler = new HaltonSampler(nsamp, sampleBounds, sampleAtCenter);
-
-    std::string samplingPlannerName = params.FindOneString("samplingplanner", "nonadaptive");
-    sampler->AddSamplingPlanner(samplingPlannerName);
+    sampler->AddSamplingPlanner(params);
 
     return sampler;
 }

@@ -17,13 +17,13 @@ namespace pbrt
         using Buffer = std::vector<std::vector<std::vector<Float>>>;
 
     public:
-        NLMeansSamplingPlanner();
+        NLMeansSamplingPlanner(int initialBudgetTarget, int iterationBudgetTarget, int filterRadius, int patchRadius, Float cancellationFactor, Float dampingFactor);
         ~NLMeansSamplingPlanner();
 
     protected:
         std::shared_ptr<NLMeansFilter> filter;
-        const int initialBudgetTarget = 10; //How many samples per pixel are aimed for in the first iteration
-        const int iterationBudgetTarget = 10; //How many samples per pixel are aimed for in each subsequent iteration
+        int initialBudget = 10; //How many samples per pixel are aimed for in the first iteration
+        int iterationBudget = 10; //How many samples per pixel are aimed for in each subsequent iteration
         std::vector<int> iterationBudgets; //Average samples per pixel, for each iteration
         std::vector<int> maxSampleBudgets; //Maximum samples per pixel, for each iteration
 
