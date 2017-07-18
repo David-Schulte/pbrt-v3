@@ -43,6 +43,8 @@
 #include "camera.h"
 #include "stats.h"
 
+#include "imageio.h"
+
 namespace pbrt {
 
 STAT_COUNTER("Integrator/Camera rays traced", nCameraRays);
@@ -247,6 +249,8 @@ void SamplerIntegrator::Render(const Scene &scene)
 	//std::unique_ptr<Filter> tmpFilter2 = std::unique_ptr<Filter>(tmpFilter);
 	//debugFilm = std::unique_ptr<Film>(new Film , Film(camera->film->fullResolution, camera->film->croppedPixelBounds, std::unique_ptr<Filter>(tmpFilter),camera->film->diagonal,camera->film->filename,(Float)1.0));
 	
+	//pbrt::WriteImage(,,,camera->film->croppedPixelBounds());
+
     sampler->InitializeSamplingPlan(camera->film);
 
 	bool writeInputImage = true;
