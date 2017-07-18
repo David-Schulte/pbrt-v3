@@ -246,6 +246,7 @@ void SamplerIntegrator::Render(const Scene &scene)
     ProgressReporter reporter(nTiles.x * nTiles.y * sampler->samplingPlanner->plannedIterations + 1, "Rendering");
     do
     {
+        LOG(INFO) << " "; //Adding some visual structure to the log file
         LOG(INFO) << "Starting iteration " << sampler->samplingPlanner->currentIteration;
 
         sampler->UpdateSamplingPlan(camera->film); //Update the distribution of samples for this iteration
@@ -261,9 +262,11 @@ void SamplerIntegrator::Render(const Scene &scene)
     } 
     while (sampler->StartNextIteration());
 
+    LOG(INFO) << " "; //Adding some visual structure to the log file
     sampler->UpdateSamplingPlan(camera->film); //Enable the sampler and SamplingPlanner to post process the rendering result
     reporter.Update();
 
+    LOG(INFO) << " "; //Adding some visual structure to the log file
     reporter.Done();
     LOG(INFO) << "Rendering finished";
 

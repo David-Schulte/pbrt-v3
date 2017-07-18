@@ -54,8 +54,8 @@ namespace pbrt
         Float xyz[3];
         Float filterWeightSum;
         AtomicFloat splatXYZ[3];
-        Float mean[3];
-        Float varianceSum[3];
+        Float mean[3]; //A running sum reserved for variance calculation
+        Float varianceSum[3]; 
         Float pad;
 
         Pixel() { xyz[0] = xyz[1] = xyz[2] = filterWeightSum = mean[0] = mean[1] = mean[2] = varianceSum[0] = varianceSum[1] = varianceSum[2] = 0; }
@@ -65,7 +65,7 @@ namespace pbrt
     {
         Spectrum contribSum = 0.f;
         Float filterWeightSum = 0.f;
-        Float mean[3];
+        Float mean[3]; //A running sum reserved for variance calculation
         Float varianceSum[3];
         Float previousFilterWeightSum;
     };
@@ -73,6 +73,8 @@ namespace pbrt
     // Film Declarations
     class Film 
     {
+        using Buffer = std::vector<std::vector<std::vector<Float>>>;
+
       public:
           // Film Public Data
           const Point2i fullResolution;
@@ -95,11 +97,13 @@ namespace pbrt
           void SetImage(const Spectrum *img, const int buffer = 0) const;
           void AddSplat(const Point2f &p, Spectrum v, const int buffer = 0); //Used in bdpt and mlt integrators! Maybe it should distribute splats over the buffers instead of defaulting to the first, as with the FilmTiles AddSample method?
           void WriteToBuffer(const std::vector<std::vector<std::vector<Float>>> &valuesXYZ, int buffer, Float overwriteFilterWeightSum = -1);
-          std::vector<std::vector<std::vector<Float>>> BufferMean(int buffer);
-          std::vector<std::vector<std::vector<Float>>> BufferVariance(int buffer);
-          void WriteVarianceImage(std::string filename, int buffer, Float splatScale = 1);
+          Buffer BufferEmpty(int amountOfValues = 3);
+          Buffer BufferXYZ(int buffer);
+          Buffer BufferVariance(int buffer);
+          Buffer BufferWeights(int buffer);
           void WriteBufferDifferenceImage(std::string filename, int buffer1, int buffer2, Float splatScale = 1);
           void WriteBufferImage(std::string filename, int buffer, Float splatScale = 1);
+          void WriteBufferImage(std::string filename, const Buffer &buffer, Float splatScale = 1);
           void WriteImage(Float splatScale = 1);
           void Clear();
           void SetBuffers(const int count = 1);

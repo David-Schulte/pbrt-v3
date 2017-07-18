@@ -16,27 +16,36 @@ namespace pbrt
         using Buffer = std::vector<std::vector<std::vector<Float>>>;
 
     public:
+        NLMeansFilter();
+        ~NLMeansFilter();
+
+        void SetParameters(int filterRadius, int patchRadius, Float cancellationFactor, Float dampingFactor);
+
+        Float FilterWeightSum(const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Point2i &pixel);
+        Buffer Filter(Film * film, int filterSourceBuffer, int weightSourceBuffer);
+
+    protected:
+        //Filter settings
         int filterRadius = 1;
         int patchRadius = 1;
         Float cancellationFactor = 1;
         Float dampingFactor = 1;
 
-        NLMeansFilter();
-        ~NLMeansFilter();
+        //Internal reserved set of filter settings used to restore the original settings when the filter needs to change temporarily internally
+        int reservedFilterRadius = 1;
+        int reservedPatchRadius = 1;
+        Float reservedCancellationFactor = 1;
+        Float reservedDampingFactor = 1;
 
-        Float PixelWeightSum(const Buffer &weightSourceBuffer, const Point2i &pixel, const Buffer &weightSourceVarianceBuffer);
+        void ReserveParameters();
+        void RestoreParameters();
 
-        Buffer Filter(Film * film, int weightSourceBuffer, int filterBuffer);
-
-    protected:
-
-        Buffer EstimateVariance(Film * film, int weightSourceBuffer, int filterBuffer);
-
-        Buffer DirectFilter(const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Buffer &filterBuffer);
-        std::vector<Float> FilterPixel(const Point2i &pixel, const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Buffer &filterBuffer);
-        Float PatchWeight(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, const Buffer &varianceBuffer);
-        Float PatchDistance(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, const Buffer &varianceBuffer);
-        std::vector<Float> PixelDistance(const Buffer &buffer, const Point2i &pixel1, const Point2i &pixel2, const Buffer &varianceBuffer);
+        //Building blocks of the NLMeansFilter
+        Buffer EstimateVariance(Film * film, int filterSourceBuffer, int weightSourceBuffer);
+        std::vector<Float> FilterPixel(const Buffer &filterSourceBuffer, const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Point2i &pixel);
+        Float PatchWeight(const Buffer &buffer, const Buffer &varianceBuffer, const Point2i &pixel1, const Point2i &pixel2);
+        Float PatchDistance(const Buffer &buffer, const Buffer &varianceBuffer, const Point2i &pixel1, const Point2i &pixel2);
+        std::vector<Float> PixelDistance(const Buffer &buffer, const Buffer &varianceBuffer, const Point2i &pixel1, const Point2i &pixel2);
 
         Bounds2i SharedBounds(const Buffer &bounds, const std::vector<Point2i> &pixels, int radius);
     };

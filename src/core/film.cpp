@@ -241,11 +241,18 @@ void Film::WriteToBuffer(const std::vector<std::vector<std::vector<Float>>> &val
     }
 }
 
-std::vector<std::vector<std::vector<Float>>> Film::BufferMean(int buffer) 
+Film::Buffer Film::BufferEmpty(int amountOfValues)
 {
-    std::vector<std::vector<std::vector<Float>>> bufferMean (croppedPixelBounds.pMax.x - croppedPixelBounds.pMin.x,                                 //size in 1st dimension
-                                                             std::vector<std::vector<Float>>(croppedPixelBounds.pMax.y - croppedPixelBounds.pMin.y, //size in 2nd dimension
-                                                             std::vector<Float>(3)));                                                               //3 values for each pixel
+    Buffer emptyBuffer(croppedPixelBounds.pMax.x - croppedPixelBounds.pMin.x,                                 //size in 1st dimension
+                       std::vector<std::vector<Float>>(croppedPixelBounds.pMax.y - croppedPixelBounds.pMin.y, //size in 2nd dimension
+                       std::vector<Float>(amountOfValues)));                                                  //Amount of values for each pixel
+
+    return emptyBuffer;
+}
+
+Film::Buffer Film::BufferXYZ(int buffer) 
+{
+    Buffer bufferMean = BufferEmpty();
     
     Point2i start = croppedPixelBounds.pMin;
 
@@ -257,7 +264,7 @@ std::vector<std::vector<std::vector<Float>>> Film::BufferMean(int buffer)
             Pixel &pixel = GetPixel(buffer, start + offset);
 
             //Recalculating the mean here, because the mean variable used in the pixel is a running sum for variance calculation. 
-            //This sum may diverge from the actual mean color values after filtering the buffer.
+            //This running sum may diverge from the actual mean color values after filtering the buffer.
             for (int i = 0; i < 3; i++) bufferMean[x][y][i] = pixel.xyz[i] / pixel.filterWeightSum;
         }
     }
@@ -265,11 +272,9 @@ std::vector<std::vector<std::vector<Float>>> Film::BufferMean(int buffer)
     return bufferMean;
 }
 
-std::vector<std::vector<std::vector<Float>>> Film::BufferVariance(int buffer)
+Film::Buffer Film::BufferVariance(int buffer)
 {
-    std::vector<std::vector<std::vector<Float>>> bufferVariance (croppedPixelBounds.pMax.x - croppedPixelBounds.pMin.x,                                 //size in 1st dimension
-                                                                 std::vector<std::vector<Float>>(croppedPixelBounds.pMax.y - croppedPixelBounds.pMin.y, //size in 2nd dimension
-                                                                 std::vector<Float>(3)));                                                               //3 values for each pixel
+    Buffer bufferVariance = BufferEmpty();
 
     Point2i start = croppedPixelBounds.pMin;
 
@@ -289,17 +294,24 @@ std::vector<std::vector<std::vector<Float>>> Film::BufferVariance(int buffer)
     return bufferVariance;
 }
 
-void Film::WriteVarianceImage(std::string nameOfFile, int buffer, Float splatScale)
+Film::Buffer Film::BufferWeights(int buffer)
 {
-    SetBuffers(amountOfBuffers + 1);
-    for (Point2i position : croppedPixelBounds)
+    Buffer bufferWeights = BufferEmpty(1);
+
+    Point2i start = croppedPixelBounds.pMin;
+
+    for (int y = 0; y < bufferWeights[0].size(); y++)
     {
-        Pixel& pixel = GetPixel(amountOfBuffers - 1, position);
-        for (int i = 0; i < 3; i++) pixel.xyz[i] = GetPixel(buffer, position).varianceSum[i] / GetPixel(buffer, position).filterWeightSum;
-        pixel.filterWeightSum = 1;
+        for (int x = 0; x < bufferWeights.size(); x++)
+        {
+            Point2i offset(x, y);
+            Pixel &pixel = GetPixel(buffer, start + offset);
+
+            bufferWeights[x][y][0] = pixel.filterWeightSum;
+        }
     }
-    WriteBufferImage(nameOfFile, amountOfBuffers - 1);
-    SetBuffers(amountOfBuffers - 1);
+
+    return bufferWeights;
 }
 
 void Film::WriteBufferDifferenceImage(std::string nameOfFile, int buffer1, int buffer2, Float splatScale)
@@ -339,6 +351,14 @@ void Film::WriteBufferImage(std::string nameOfFile, int buffer, Float splatScale
         ++offset;
     }
     pbrt::WriteImage(nameOfFile, &rgb[0], croppedPixelBounds, fullResolution);
+}
+
+void Film::WriteBufferImage(std::string filename, const Buffer &buffer, Float splatScale)
+{
+    SetBuffers(amountOfBuffers + 1);
+    WriteToBuffer(buffer, amountOfBuffers - 1, 1);
+    WriteBufferImage(filename, amountOfBuffers - 1);
+    SetBuffers(amountOfBuffers - 1);
 }
 
 void Film::WriteImage(Float splatScale) 

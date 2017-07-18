@@ -18,7 +18,7 @@ namespace pbrt
 
         if (currentIteration > plannedIterations) //Post processing...
         {
-            film->WriteVarianceImage("pixelVariance.exr", 0);
+            film->WriteBufferImage("pixelVariance.exr", film->BufferVariance(0));
         }
     }
 

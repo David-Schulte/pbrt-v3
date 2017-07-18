@@ -16,7 +16,7 @@ namespace pbrt
 
         DualBufferFiltering(film);
 
-        std::vector<std::vector<std::vector<Float>>> estimatedError = EstimateError(film);
+        Buffer estimatedError = EstimateError(film);
         FillMapErrorProportional(estimatedError);
         //FillMapUniformly(sampleMap, iterationBudgets[currentIteration - 1]);
 
@@ -24,12 +24,12 @@ namespace pbrt
         {
             film->WriteBufferImage("buffer1.exr", 0);
             film->WriteBufferImage("buffer2.exr", 1);
-            film->WriteVarianceImage("buffer1_pixelVariance.exr", 0);
-            film->WriteVarianceImage("buffer2_pixelVariance.exr", 1);
+            film->WriteBufferImage("buffer1_pixelVariance.exr", film->BufferVariance(0));
+            film->WriteBufferImage("buffer2_pixelVariance.exr", film->BufferVariance(1));
             film->WriteBufferDifferenceImage("bufferDifference.exr", 0, 1);
 
             film->SetBuffers(film->amountOfBuffers + 1);
-            film->WriteToBuffer(EstimateError(film), film->amountOfBuffers - 1, 1);
+            film->WriteToBuffer(estimatedError, film->amountOfBuffers - 1, 1);
             film->WriteBufferImage("errorEstimation.exr", film->amountOfBuffers - 1);
             film->SetBuffers(film->amountOfBuffers - 1);
         }
@@ -40,13 +40,12 @@ namespace pbrt
         filter = std::make_shared<NLMeansFilter>();
         int minDimension = std::min(film->croppedPixelBounds.pMax.x - film->croppedPixelBounds.pMin.x,
                                     film->croppedPixelBounds.pMax.y - film->croppedPixelBounds.pMin.y);
-        float filterRadius = std::ceil(std::sqrt(minDimension) / 10);
-        float patchRadius = std::ceil(filterRadius / 2);
-        filter->filterRadius = filterRadius;
-        filter->patchRadius = patchRadius;
-        filter->cancellationFactor = 1;
-        filter->dampingFactor = 0.4;
-        LOG(INFO) << "NLMeansFilter filterRadius: " << filter->filterRadius << ", patchRadius: " << filter->patchRadius << ", cancellationFactor: " << filter->cancellationFactor << ", dampingFactor: " << filter->dampingFactor;
+        int filterRadius = std::ceil(std::sqrt(minDimension) / 10);
+        int patchRadius = std::ceil(filterRadius / 2);
+        Float cancellationFactor = 1;
+        Float dampingFactor = 0.4;
+        filter->SetParameters(filterRadius, patchRadius, cancellationFactor, dampingFactor);
+        LOG(INFO) << "NLMeansFilter filterRadius: " << filterRadius << ", patchRadius: " << patchRadius << ", cancellationFactor: " << cancellationFactor << ", dampingFactor: " << dampingFactor;
 
         film->SetBuffers(2);
         PlanIterations();
@@ -89,28 +88,25 @@ namespace pbrt
     {
         unsigned int startTime = clock();
 
-        std::vector<std::vector<std::vector<Float>>> filteredBuffer0 = filter->Filter(film, 1, 0);
-        std::vector<std::vector<std::vector<Float>>> filteredBuffer1 = filter->Filter(film, 0, 1);
+        Buffer filteredBuffer0 = filter->Filter(film, 0, 1);
+        Buffer filteredBuffer1 = filter->Filter(film, 1, 0);
         film->WriteToBuffer(filteredBuffer0, 0);
         film->WriteToBuffer(filteredBuffer1, 1);
 
         Float elapsedTime = (Float)(clock() - startTime) / 1000;
         elapsedTime = std::round(elapsedTime * 10) / 10; //Round to one decimal digit
-        LOG(INFO) << "Dual-Buffer filtering complete, took: " << elapsedTime << " seconds";
+        LOG(INFO) << "Dual buffer filtering complete. Took: " << elapsedTime << " seconds";
     }
 
-    std::vector<std::vector<std::vector<Float>>> NLMeansSamplingPlanner::EstimateError(Film * film)
+    NLMeansSamplingPlanner::Buffer NLMeansSamplingPlanner::EstimateError(Film * film)
     {
         unsigned int startTime = clock();
 
-        std::vector<std::vector<std::vector<Float>>> bufferMean0 = film->BufferMean(0);
-        std::vector<std::vector<std::vector<Float>>> bufferMean1 = film->BufferMean(1);
-        std::vector<std::vector<std::vector<Float>>> bufferMeanDifference = film->BufferMean(0);
+        Buffer buffer0XYZ = film->BufferXYZ(0);
+        Buffer buffer1XYZ = film->BufferXYZ(1);
 
-        int sizeX = bufferMeanDifference.size();
-        int sizeY = bufferMeanDifference[0].size();
-        int pixelCounter = 0;
-        Float averageMeanDifference = 0;
+        int sizeX = buffer0XYZ.size();
+        int sizeY = buffer0XYZ[0].size();
 
         for (int y = 0; y < sizeY; y++)
         {
@@ -118,59 +114,71 @@ namespace pbrt
             {
                 for (int i = 0; i < 3; i++)
                 {
-                    //Calculate the buffer differences
-                    Float meanDifference = std::pow((bufferMean0[x][y][i] - bufferMean1[x][y][i]), 2);
+                    //Calculate the buffer color differences
+                    Float squaredColorDifference = buffer0XYZ[x][y][i] - buffer1XYZ[x][y][i];
+                    squaredColorDifference = std::pow(squaredColorDifference, 2);
 
-                    //Store differences in the buffers (former values will not be used anymore and can safely be overwritten)
-                    bufferMeanDifference[x][y][i] = meanDifference;
+                    //Calculate the variance cancellation values
+                    Float squaredColor0 = std::pow(buffer0XYZ[x][y][i], 2);
+                    Float squaredColor1 = std::pow(buffer1XYZ[x][y][i], 2);
 
-                    //Sum values up to get an average later
-                    averageMeanDifference += meanDifference;
+                    //Calculate the variance cancelled error values for the buffers
+                    Float buffer0Error = squaredColorDifference / (squaredColor0 + 10e-3);
+                    Float buffer1Error = squaredColorDifference / (squaredColor1 + 10e-3);
+
+                    //Store the average error in buffer0XYZ, which can now be safely overwritten
+                    buffer0XYZ[x][y][i] = buffer0Error;
+                    buffer1XYZ[x][y][i] = buffer1Error;
                 }
-                pixelCounter += 1;
             }
         }
-        LOG(INFO) << "Average squared color difference of buffers: " << averageMeanDifference / pixelCounter;
 
-        //Insert variance canceled sqr differences into the fromer bufferMean vectors, replacing their content
-        for (int y = 0; y < sizeY; y++)
-            for (int x = 0; x < sizeX; x++)
-                for (int i = 0; i < 3; i++)
-                {
-                    bufferMean0[x][y][i] = bufferMeanDifference[x][y][i] / (0.0001 + std::pow(bufferMean0[x][y][i], 2));
-                    bufferMean1[x][y][i] = bufferMeanDifference[x][y][i] / (0.0001 + std::pow(bufferMean1[x][y][i], 2));
-                }
+        //buffer0XYZ had its values overwritten and now holds the error values of it's buffer
+        //buffer1XYZ had its values overwritten and now holds the error values of it's buffer
+        //Just renaming them here to clarify intent!
+        Buffer &buffer0Error = buffer0XYZ;
+        Buffer &buffer1Error = buffer1XYZ;
 
-        //Insert the average buffer error (now stored in the bufferMean's) into bufferMeanDifference 
-        for (int y = 0; y < sizeY; y++)
-            for (int x = 0; x < sizeX; x++)
-                for (int i = 0; i < 3; i++)
-                    bufferMeanDifference[x][y][i] = (bufferMean0[x][y][i] + bufferMean1[x][y][i]) / 2;
-
-        //TODO:: It is not clear which buffers are to be used in the following two steps...
         //Weight all the estimated values by how much contribution they give to their surrounding pixels and store result in bufferMean0's first Float value
-        std::vector<std::vector<std::vector<Float>>> varianceBuffer = film->BufferVariance(0); //TODO:: Should probably use the variance as an average of both buffers?
+        Buffer buffer0Variance = film->BufferVariance(0);
+        Buffer buffer1Variance = film->BufferVariance(1);
+        Buffer buffer0Weights = film->BufferWeights(0);
+        Buffer buffer1Weights = film->BufferWeights(1);
+        Buffer weightStorage = film->BufferEmpty();
+
         for (int y = 0; y < sizeY; y++)
+        {
             for (int x = 0; x < sizeX; x++)
             {
-                Float weight = filter->PixelWeightSum(bufferMeanDifference, Point2i(x, y), varianceBuffer); //TODO:: Are these buffers the right ones to use?
-                bufferMean0[x][y][0] = weight;
-            }
+                Float weight0 = filter->FilterWeightSum(buffer0Error, buffer0Variance, Point2i(x, y)); //TODO:: Are these buffers the right ones to use?
+                Float weight1 = filter->FilterWeightSum(buffer1Error, buffer1Variance, Point2i(x, y)); //TODO:: Are these buffers the right ones to use?
+                weight0 /= (buffer0Weights[x][y][0] + 1);
+                weight1 /= (buffer1Weights[x][y][0] + 1);
 
-        //Apply the calculated weights (which are now stored in the bufferMean0's first Float value) to the average buffer error
+                //Apply the calculated weights to the buffer errors
+                for (int i = 0; i < 3; i++)
+                {
+                    buffer0Error[x][y][i] *= weight0;
+                    buffer1Error[x][y][i] *= weight1;
+                }
+            }
+        }
+
+        //Average the buffers error to obtain a single error value which can be used to drive the sampling process
+        Buffer averageBufferError = film->BufferEmpty();
         for (int y = 0; y < sizeY; y++)
             for (int x = 0; x < sizeX; x++)
                 for (int i = 0; i < 3; i++)
-                    bufferMeanDifference[x][y][i] *= bufferMean0[x][y][0];
+                    averageBufferError[x][y][i] = (buffer0Error[x][y][i] + buffer1Error[x][y][i]) / 2;
 
         Float elapsedTime = (Float)(clock() - startTime) / 1000;
         elapsedTime = std::round(elapsedTime * 10) / 10; //Round to one decimal digit
         LOG(INFO) << "Error estimation complete, took: " << elapsedTime << " seconds";
 
-        return bufferMeanDifference;
+        return averageBufferError;
     }
 
-    void NLMeansSamplingPlanner::FillMapErrorProportional(const std::vector<std::vector<std::vector<Float>>> &error)
+    void NLMeansSamplingPlanner::FillMapErrorProportional(const Buffer &error)
     {
         int sizeX = sampleMap.size();
         int sizeY = sampleMap[0].size();
