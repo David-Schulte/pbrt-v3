@@ -30,6 +30,7 @@ namespace pbrt
         int patchRadius = 1;
         Float cancellationFactor = 1;
         Float dampingFactor = 1;
+        Float sqrDampingFactor = 1;
 
         //Internal reserved set of filter settings used to restore the original settings when the filter needs to change temporarily internally
         int reservedFilterRadius = 1;
@@ -37,17 +38,19 @@ namespace pbrt
         Float reservedCancellationFactor = 1;
         Float reservedDampingFactor = 1;
 
+        //Convenience functions for the filter settings
         void ReserveParameters();
         void RestoreParameters();
 
         //Building blocks of the NLMeansFilter
         Buffer EstimateVariance(Film * film, int filterSourceBuffer, int weightSourceBuffer);
-        std::vector<Float> FilterPixel(const Buffer &filterSourceBuffer, const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Point2i &pixel);
-        Float PatchWeight(const Buffer &buffer, const Buffer &varianceBuffer, const Point2i &pixel1, const Point2i &pixel2);
-        Float PatchDistance(const Buffer &buffer, const Buffer &varianceBuffer, const Point2i &pixel1, const Point2i &pixel2);
-        std::vector<Float> PixelDistance(const Buffer &buffer, const Buffer &varianceBuffer, const Point2i &pixel1, const Point2i &pixel2);
+        void FilterPixel(const Buffer &filterSourceBuffer, const Buffer &weightSourceBuffer, const Buffer &weightSourceVarianceBuffer, const Point2i &pixel, std::vector<Float> &resultStorage, std::vector<Float> &tempStorage);
+        Float PatchWeight(const Buffer &buffer, const Buffer &varianceBuffer, const Point2i &pixel1, const Point2i &pixel2, std::vector<Float> &tempStorage);
+        Float PatchDistance(const Buffer &buffer, const Buffer &varianceBuffer, const Point2i &pixel1, const Point2i &pixel2, std::vector<Float> &tempStorage);
+        void PixelDistance(const Buffer &buffer, const Buffer &varianceBuffer, const Point2i &pixel1, const Point2i &pixel2, std::vector<Float> &resultStorage);
 
-        Bounds2i SharedBounds(const Buffer &bounds, const std::vector<Point2i> &pixels, int radius);
+        Bounds2i SharedBounds(const Buffer &bounds, const Point2i &pixel, int radius);
+        Bounds2i SharedBounds(const Buffer &bounds, const Point2i &pixel1, const Point2i &pixel2, int radius);
     };
 
 }
