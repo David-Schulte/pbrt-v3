@@ -13,7 +13,7 @@ namespace pbrt
 {
 	struct AdaptiveGrid
 	{
-		AdaptiveGrid(int fixedWindowSize = 3) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
+		AdaptiveGrid(int fixedWindowSize = 5) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
 		void refineGrid() { granularity /= 2; margin.x /= 2; margin.y /= 2; }
 
 		Point2i margin;

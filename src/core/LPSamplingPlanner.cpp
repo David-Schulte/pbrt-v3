@@ -308,7 +308,8 @@ namespace pbrt
 	}
 
 	// Replace double for loop with dot product.
-	Eigen::MatrixXd constructXc(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel, int featureDim=2)
+	//Eigen::MatrixXd constructXc(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel, int featureDim=2)
+	Eigen::MatrixXd constructXc(int adaptiveWindowSize, int featureDim = 2)
 	{
 		Eigen::MatrixXd result(adaptiveWindowSize*adaptiveWindowSize, 1 + featureDim);
 
@@ -324,11 +325,9 @@ namespace pbrt
 			{
 				for (int column = 0; column < adaptiveWindowSize; column++)
 				{
-					//int row = centerPixel.x - adaptiveWindowSize / 2 + j;
-					//int column = centerPixel.y - adaptiveWindowSize / 2 + k;
 					Eigen::VectorXd feature(featureDim);
 					feature<<(Float)row, (Float)column;
-					result(row*adaptiveWindowSize + column, featureIdx+1) = feature(featureIdx) - centerPixel[featureIdx];
+					result(row*adaptiveWindowSize + column, featureIdx+1) = feature(featureIdx) - adaptiveWindowSize/2;
 				}
 			}
 		}
@@ -368,7 +367,7 @@ namespace pbrt
 		result.center = centerPixel;
 		result.windowSize = adaptiveWindowSize;
 
-		Eigen::MatrixXd X = constructXc(adaptiveWindowSize, rawPixelData, centerPixel, featureDim);
+		Eigen::MatrixXd X = constructXc(adaptiveWindowSize, featureDim);
 		Eigen::VectorXd Y = constructYc(adaptiveWindowSize, rawPixelData, centerPixel);
 
 		std::cout << "\n\n X: \n" << X << std::endl << std::endl;
@@ -758,7 +757,7 @@ namespace pbrt
 		result.center = centerPixel;
 		result.windowSize = adaptiveWindowSize;
 
-		Eigen::MatrixXd X = constructXc(adaptiveWindowSize, rawPixelData, centerPixel);
+		Eigen::MatrixXd X = constructXc(adaptiveWindowSize);
 		Eigen::VectorXd Y = constructYc(adaptiveWindowSize, rawPixelData, centerPixel);
 
 		Eigen::MatrixXd A = X.transpose()*X;
@@ -801,27 +800,29 @@ namespace pbrt
 		//	}
 		//}
 
-		std::vector<std::vector<rawPixelData>> testAllEqualPixelData = std::vector<std::vector<rawPixelData>>(3, std::vector<rawPixelData>(3, rawPixelData()));
+		int fixedWindowSize = 5;
 
-		for (int i = 0; i < 3; i++)
+		std::vector<std::vector<rawPixelData>> testAllEqualPixelData = std::vector<std::vector<rawPixelData>>(fixedWindowSize, std::vector<rawPixelData>(fixedWindowSize, rawPixelData()));
+
+		for (int i = 0; i < fixedWindowSize; i++)
 		{
-			for (int j = 0; j < 3; j++)
+			for (int j = 0; j < fixedWindowSize; j++)
 			{
-				testAllEqualPixelData[i][j].xyz[0] = i * 3 + j;
-				testAllEqualPixelData[i][j].xyz[1] = i * 3 + j;
-				testAllEqualPixelData[i][j].xyz[2] = i * 3 + j;
+				testAllEqualPixelData[i][j].xyz[0] = i * fixedWindowSize + j;
+				testAllEqualPixelData[i][j].xyz[1] = i * fixedWindowSize + j;
+				testAllEqualPixelData[i][j].xyz[2] = i * fixedWindowSize + j;
 
-				testAllEqualPixelData[i][j].rgb[0] = i * 3 + j;
-				testAllEqualPixelData[i][j].rgb[1] = i * 3 + j;
-				testAllEqualPixelData[i][j].rgb[2] = i * 3 + j;
+				testAllEqualPixelData[i][j].rgb[0] = i * fixedWindowSize + j;
+				testAllEqualPixelData[i][j].rgb[1] = i * fixedWindowSize + j;
+				testAllEqualPixelData[i][j].rgb[2] = i * fixedWindowSize + j;
 			}
 		}
 
 		std::vector<LinearModel> linModels;
 
-		Point2i centerPixel= Point2i(1, 1);
+		Point2i centerPixel = Point2i(fixedWindowSize/2, fixedWindowSize/2);
 
-		for (int i = 1; i < 4; i+=2)
+		for (int i = 1; i < fixedWindowSize+1; i+=2)
 		{
 			//Float sumAllElementsOfXc = 0;
 			//Float sumAllElementsOfYc = 0;
