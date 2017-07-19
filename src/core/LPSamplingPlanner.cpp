@@ -21,7 +21,7 @@ namespace pbrt
 		{
 			//testMatrixInv();
 			//testLUFactorization();
-			//predictionErrorEstimateTest();
+			predictionErrorEstimateTest();
 			//printf("\ninputFilm size: [%d, %d]\n", film->fullResolution.x, film->fullResolution.y);
 			//printf("\nCoverageMask size: [%d, %d]\n", coverageMask[0].size(), coverageMask.size());
 			//printf("\nSampleMap size: [%d, %d]\n", plannedSampleMap[0].size(), plannedSampleMap.size());
@@ -308,23 +308,28 @@ namespace pbrt
 	}
 
 	// Replace double for loop with dot product.
-	Eigen::MatrixXd constructXc(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
+	Eigen::MatrixXd constructXc(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel, int featureDim=2)
 	{
-		Eigen::MatrixXd result(adaptiveWindowSize*adaptiveWindowSize, 2);
+		Eigen::MatrixXd result(adaptiveWindowSize*adaptiveWindowSize, 1 + featureDim);
 
 		for (int i = 0; i < adaptiveWindowSize*adaptiveWindowSize; i++)
 		{
 			result(i, 0) = 1;
 		}
-		for (int i = 0; i < adaptiveWindowSize; i++)
+
+
+		for (int featureIdx = 0; featureIdx < featureDim; featureIdx++)
 		{
-			for (int j = 0; j < adaptiveWindowSize; j++)
+			for (int row = 0; row < adaptiveWindowSize; row++)
 			{
-				int row = centerPixel.y - adaptiveWindowSize / 2 + i;
-				int column = centerPixel.x - adaptiveWindowSize / 2 + j;
-				result(i*adaptiveWindowSize + j, 1) = ((rawPixelData[column][row].xyz[0] - rawPixelData[centerPixel.x][centerPixel.y].xyz[0])
-					+ (rawPixelData[column][row].xyz[1] - rawPixelData[centerPixel.x][centerPixel.y].xyz[1])
-					+ (rawPixelData[column][row].xyz[2] - rawPixelData[centerPixel.x][centerPixel.y].xyz[2])) / 3.0;
+				for (int column = 0; column < adaptiveWindowSize; column++)
+				{
+					//int row = centerPixel.x - adaptiveWindowSize / 2 + j;
+					//int column = centerPixel.y - adaptiveWindowSize / 2 + k;
+					Eigen::VectorXd feature(featureDim);
+					feature<<(Float)row, (Float)column;
+					result(row*adaptiveWindowSize + column, featureIdx+1) = feature(featureIdx) - centerPixel[featureIdx];
+				}
 			}
 		}
 
@@ -356,18 +361,18 @@ namespace pbrt
 		return result;
 	}
 
-	LinearModel LPSamplingPlanner::computeLinearModelAndPredictionError(const LinearModel previousLinModel, const int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, const Point2i centerPixel)
+	LinearModel LPSamplingPlanner::computeLinearModelAndPredictionError(const LinearModel previousLinModel, const int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, const Point2i centerPixel, int featureDim)
 	{
 		LinearModel result;
 
 		result.center = centerPixel;
 		result.windowSize = adaptiveWindowSize;
 
-		Eigen::MatrixXd X = constructXc(adaptiveWindowSize, rawPixelData, centerPixel);
+		Eigen::MatrixXd X = constructXc(adaptiveWindowSize, rawPixelData, centerPixel, featureDim);
 		Eigen::VectorXd Y = constructYc(adaptiveWindowSize, rawPixelData, centerPixel);
 
-		//std::cout << "\n\n X: \n" << X << std::endl << std::endl;
-		//std::cout << "\n\n Y: \n" << Y << std::endl << std::endl;
+		std::cout << "\n\n X: \n" << X << std::endl << std::endl;
+		std::cout << "\n\n Y: \n" << Y << std::endl << std::endl;
 
 		Eigen::MatrixXd A = X.transpose()*X;
 		Eigen::VectorXd B = X.transpose()*Y;
@@ -399,7 +404,7 @@ namespace pbrt
 			result.linModelCoeffs = Eigen::VectorXd::Zero(X.cols(),1);
 			result.predError = 0.0;
 		}
-		result.print();
+		//result.print();
 		return result;
 	}
 
@@ -418,7 +423,8 @@ namespace pbrt
 		//  If first prediction error.
 		if (windowSize == 1)
 		{
-			linModelError = linModel.linModelCoeffs(0, 0)*Xc(0, 0) + linModel.linModelCoeffs(0, 1)*Xc(0, 1);
+			//linModelError = linModel.linModelCoeffs(0, 0)*Xc(0, 0) + linModel.linModelCoeffs(0, 1)*Xc(0, 1);
+			linModelError = (linModel.linModelCoeffs.row(0).transpose()*Xc.row(0))(0,0);
 		}
 		else
 			//  If second prediction error.
@@ -594,8 +600,8 @@ namespace pbrt
 				m(i, j) = (double)testM[i * 19 + j];
 			}
 		}
-		std::cout << "\nM: \n" << m << std::endl;
-		std::cout << "Inverse M: \n" << m.inverse() << std::endl;
+		//std::cout << "\nM: \n" << m << std::endl;
+		//std::cout << "Inverse M: \n" << m.inverse() << std::endl;
 	}
 
 	void testLUFactorization() 
@@ -610,7 +616,7 @@ namespace pbrt
 			}
 		}
 
-		std::cout << "\nX: \n" << X << std::endl;
+		//std::cout << "\nX: \n" << X << std::endl;
 
 		Eigen::VectorXd result;
 
@@ -621,24 +627,24 @@ namespace pbrt
 			Y(i, 1) = testV[i];
 		}
 
-		std::cout << "\nY: \n" << Y << std::endl;
+		//std::cout << "\nY: \n" << Y << std::endl;
 
 		Eigen::MatrixXd A = X.transpose()*X;
 		Eigen::VectorXd B = X.transpose()*Y;
 
-		std::cout << "X rows dimension: " << X.rows() << std::endl;
-		std::cout << "X cols dimension: " << X.cols() << std::endl;
-		std::cout << "Y rows dimension: " << Y.rows() << std::endl;
-		std::cout << "Y cols dimension: " << Y.cols() << std::endl;
+		//std::cout << "X rows dimension: " << X.rows() << std::endl;
+		//std::cout << "X cols dimension: " << X.cols() << std::endl;
+		//std::cout << "Y rows dimension: " << Y.rows() << std::endl;
+		//std::cout << "Y cols dimension: " << Y.cols() << std::endl;
 		// Add error handling here!
 
 		result = Eigen::VectorXd(19, 1);
 		result = (X.transpose()*X).inverse()*X.transpose()*Y;
-		std::cout << "\nNormal equation solution:\n" << result << std::endl;
-		std::cout << "\nSolution rows dimension: " << (A.fullPivLu().solve(B)).rows() << std::endl;
-		std::cout << "\nSolution columns dimension: " << (A.fullPivLu().solve(B)).cols() << std::endl;
+		//std::cout << "\nNormal equation solution:\n" << result << std::endl;
+		//std::cout << "\nSolution rows dimension: " << (A.fullPivLu().solve(B)).rows() << std::endl;
+		//std::cout << "\nSolution columns dimension: " << (A.fullPivLu().solve(B)).cols() << std::endl;
 		result = A.fullPivLu().solve(B);
-		std::cout << "\nLU decomposition solution:\n" << result << std::endl;
+		//std::cout << "\nLU decomposition solution:\n" << result << std::endl;
 	}
 
 	// Duplicates for testing only! Delete later!
@@ -681,23 +687,21 @@ namespace pbrt
 					Float nominator = ((linModel.linModelCoeffs.transpose() * Xc.row(i).transpose())(0, 0) - Yc(i));
 					Float denominator = (1.0 - (Xc.row(i) * Pc * Xc.row(i).transpose())(0, 0))+std::numeric_limits<Float>::min();
 
-					std::cout << "\n\n LinModelCoeffs result (matrix): \n" << (linModel.linModelCoeffs.transpose()) << std::endl << std::endl;
+					//std::cout << "\n\n LinModelCoeffs result (matrix): \n" << (linModel.linModelCoeffs.transpose()) << std::endl << std::endl;
 
-					std::cout << "\n\n Error XcT result (matrix): \n" << XcT << std::endl << std::endl;
+					//std::cout << "\n\n Error XcT result (matrix): \n" << XcT << std::endl << std::endl;
 
-					std::cout << "\n\n Error Pc result (matrix): \n" << Pc << std::endl << std::endl;
-
-					std::numeric_limits<Float>::epsilon;
+					//std::cout << "\n\n Error Pc result (matrix): \n" << Pc << std::endl << std::endl;
 
 					//if (std::numeric_limits<Float>::epsilon() == denominator || denominator == 0.0)
 					//{
-						printf("\n\nNominator / Denominator (prediction error, window size 3): [ %f / %f ]\n\n", nominator, denominator);
+						//printf("\n\nNominator / Denominator (prediction error, window size 3): [ %f / %f ]\n\n", nominator, denominator);
 					//}
 
 					Eigen::MatrixXd denomnatorMatrix = (Xc.row(i) * Pc * Xc.row(i).transpose());
-					std::cout << "\n\nZT: \n" << Xc.row(i) << std::endl;
-					std::cout << "\nZ:   \n" << Xc.row(i).transpose() << std::endl << std::endl;
-					std::cout << "\n\n Error denominator result (matrix) (Xc.row(i).transpose() * Pc * Xc.row(i)): \n" << denomnatorMatrix(0,0) << std::endl << std::endl;
+					//std::cout << "\n\nZT: \n" << Xc.row(i) << std::endl;
+					//std::cout << "\nZ:   \n" << Xc.row(i).transpose() << std::endl << std::endl;
+					//std::cout << "\n\n Error denominator result (matrix) (Xc.row(i).transpose() * Pc * Xc.row(i)): \n" << denomnatorMatrix(0,0) << std::endl << std::endl;
 
 					//newLinModelError = ((linModel.linModelCoeffs.transpose() * Xc.row(i))(0, 0) - Yc(i)) / (1.0 - denomnatorMatrix(0,0));//(Xc.row(i) * Pc * Xc.row(i).transpose())(1, 1));
 					newLinModelError = nominator / (1.0 - denomnatorMatrix(0, 0));
@@ -774,89 +778,75 @@ namespace pbrt
 	void LPSamplingPlanner::predictionErrorEstimateTest()
 	{
 		// Test, all valeus of 21x21 matrix are equal. Expected result: Zero, for all window sizes up to fixed window size.
-		std::vector<std::vector<rawPixelData>> testAllEqualPixelData = std::vector<std::vector<rawPixelData>>(21, std::vector<rawPixelData>(21, rawPixelData()));
+		//std::vector<std::vector<rawPixelData>> testAllEqualPixelData = std::vector<std::vector<rawPixelData>>(21, std::vector<rawPixelData>(21, rawPixelData()));
 
-		Float fillVal = 1.0;
-		Float fillVal1 = 1.0;
-		Float fillVal2 = 0.0;
-		Float fillVal3 = 255.0;
+		//Float fillVal = 1.0;
+		//Float fillVal1 = 1.0;
+		//Float fillVal2 = 0.0;
+		//Float fillVal3 = 255.0;
 
 
-		int cut = 7;
-		for (int i = 0; i < 21; i++)
+		//int cut = 7;
+		//for (int i = 0; i < 21; i++)
+		//{
+		//	for (int j = 0; j < 21; j++)
+		//	{
+		//		testAllEqualPixelData[i][j].xyz[0] = i * 21 + j;
+		//		testAllEqualPixelData[i][j].xyz[1] = i * 21 + j;
+		//		testAllEqualPixelData[i][j].xyz[2] = i * 21 + j;
+
+		//		testAllEqualPixelData[i][j].rgb[0] = i * 21 + j;
+		//		testAllEqualPixelData[i][j].rgb[1] = i * 21 + j;
+		//		testAllEqualPixelData[i][j].rgb[2] = i * 21 + j;
+		//	}
+		//}
+
+		std::vector<std::vector<rawPixelData>> testAllEqualPixelData = std::vector<std::vector<rawPixelData>>(3, std::vector<rawPixelData>(3, rawPixelData()));
+
+		for (int i = 0; i < 3; i++)
 		{
-			for (int j = 0; j < 21; j++)
+			for (int j = 0; j < 3; j++)
 			{
-				if (i <= cut)
-				{
-					testAllEqualPixelData[i][j].rgb[0] = fillVal1;
-					testAllEqualPixelData[i][j].rgb[1] = fillVal1;
-					testAllEqualPixelData[i][j].rgb[2] = fillVal1;
+				testAllEqualPixelData[i][j].xyz[0] = i * 3 + j;
+				testAllEqualPixelData[i][j].xyz[1] = i * 3 + j;
+				testAllEqualPixelData[i][j].xyz[2] = i * 3 + j;
 
-					testAllEqualPixelData[i][j].xyz[0] = fillVal1;
-					testAllEqualPixelData[i][j].xyz[1] = fillVal1;
-					testAllEqualPixelData[i][j].xyz[2] = fillVal1;
-				}
-				else if (i > cut) 
-				{
-					float r = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
-					testAllEqualPixelData[i][j].rgb[0] = fillVal3 + r;
-					testAllEqualPixelData[i][j].rgb[1] = fillVal3 + r;
-					testAllEqualPixelData[i][j].rgb[2] = fillVal3 + r;
-
-					testAllEqualPixelData[i][j].xyz[0] = fillVal3 + r;
-					testAllEqualPixelData[i][j].xyz[1] = fillVal3 + r;
-					testAllEqualPixelData[i][j].xyz[2] = fillVal3 + r;
-				}
-				else if (i == 21 / 2)
-				{
-					testAllEqualPixelData[i][j].rgb[0] = fillVal2;
-					testAllEqualPixelData[i][j].rgb[1] = fillVal2;
-					testAllEqualPixelData[i][j].rgb[2] = fillVal2;
-
-					testAllEqualPixelData[i][j].xyz[0] = fillVal2;
-					testAllEqualPixelData[i][j].xyz[1] = fillVal2;
-					testAllEqualPixelData[i][j].xyz[2] = fillVal2;
-				}
+				testAllEqualPixelData[i][j].rgb[0] = i * 3 + j;
+				testAllEqualPixelData[i][j].rgb[1] = i * 3 + j;
+				testAllEqualPixelData[i][j].rgb[2] = i * 3 + j;
 			}
 		}
 
-		//testAllEqualPixelData[10][10].rgb[0] -= fillVal;
-		//testAllEqualPixelData[10][10].rgb[1] -= fillVal;
-		//testAllEqualPixelData[10][10].rgb[2] -= fillVal;
-
-		//testAllEqualPixelData[10][10].xyz[0] -= fillVal;
-		//testAllEqualPixelData[10][10].xyz[1] -= fillVal;
-		//testAllEqualPixelData[10][10].xyz[2] -= fillVal;
-
 		std::vector<LinearModel> linModels;
 
-		for (int i = 1; i < 20; i+=2)
+		Point2i centerPixel= Point2i(1, 1);
+
+		for (int i = 1; i < 4; i+=2)
 		{
-			Float sumAllElementsOfXc = 0;
-			Float sumAllElementsOfYc = 0;
-			Eigen::MatrixXd Xc = constructXc(i, testAllEqualPixelData, Point2i(10, 10));
-			Eigen::VectorXd Yc = constructYc(i, testAllEqualPixelData, Point2i(10, 10));
+			//Float sumAllElementsOfXc = 0;
+			//Float sumAllElementsOfYc = 0;
+			//Eigen::MatrixXd Xc = constructXc(i, testAllEqualPixelData, centerPixel);
+			//Eigen::VectorXd Yc = constructYc(i, testAllEqualPixelData, centerPixel);
 			
-			for (int j = 0; j < Xc.cols()*Xc.rows(); j++)
-			{
-				sumAllElementsOfXc += Xc(j); 
-			}
+			//for (int j = 0; j < Xc.cols()*Xc.rows(); j++)
+			//{
+			//	sumAllElementsOfXc += Xc(j); 
+			//}
 
-			for (int j = 0; j < Yc.cols()*Yc.rows(); j++)
-			{
-				sumAllElementsOfYc += Yc(j);
-			}
+			//for (int j = 0; j < Yc.cols()*Yc.rows(); j++)
+			//{
+			//	sumAllElementsOfYc += Yc(j);
+			//}
 
-			printf("\n\nSum of all Xc elements: %f\n",sumAllElementsOfXc);
-			printf("Sum of all Yc elements: %f\n\n", sumAllElementsOfYc);
+			//printf("\n\nSum of all Xc elements: %f\n",sumAllElementsOfXc);
+			//printf("Sum of all Yc elements: %f\n\n", sumAllElementsOfYc);
 			if (!linModels.empty())
 			{
-				linModels.push_back(computeLinearModelAndPredictionError(linModels[linModels.size() - 1], i, testAllEqualPixelData, Point2i(10, 10)));
+				linModels.push_back(computeLinearModelAndPredictionError(linModels[linModels.size() - 1], i, testAllEqualPixelData, centerPixel));
 			}
 			else
 			{
-				linModels.push_back(computeLinearModelAndPredictionError(LinearModel(), i, testAllEqualPixelData, Point2i(10, 10)));
+				linModels.push_back(computeLinearModelAndPredictionError(LinearModel(), i, testAllEqualPixelData, centerPixel));
 			}
 			
 		}

@@ -13,7 +13,7 @@ namespace pbrt
 {
 	struct AdaptiveGrid
 	{
-		AdaptiveGrid(int fixedWindowSize = 7) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
+		AdaptiveGrid(int fixedWindowSize = 3) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
 		void refineGrid() { granularity /= 2; margin.x /= 2; margin.y /= 2; }
 
 		Point2i margin;
@@ -89,7 +89,7 @@ namespace pbrt
 		bool finalRender;
 		int64_t numberCoveredPixels;
 
-		LinearModel computeLinearModelAndPredictionError(const LinearModel previousLinModel, int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
+		LinearModel computeLinearModelAndPredictionError(const LinearModel previousLinModel, int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel, int featureDim = 2);
 		void updatePredictionErrorEstimate(LinearModel &linModel, const LinearModel previousLinModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd Xc, Eigen::MatrixXd Yc);
 		
 		int findMinErrorLinModelIdx(std::vector<LinearModel> linModels, Float minErrorThreshold = 0.00000000000000001);
