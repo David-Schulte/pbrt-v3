@@ -13,7 +13,7 @@ namespace pbrt
 {
 	struct AdaptiveGrid
 	{
-		AdaptiveGrid(int fixedWindowSize = 19) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
+		AdaptiveGrid(int fixedWindowSize = 7) : fixedWindowSize(fixedWindowSize), granularity(fixedWindowSize) {}
 		void refineGrid() { granularity /= 2; margin.x /= 2; margin.y /= 2; }
 
 		Point2i margin;
@@ -43,6 +43,14 @@ namespace pbrt
 		Eigen::VectorXd linModelCoeffs;
 		double nominatorPredError = 0.0;
 		double predError = 0.0;
+		void LinearModel::print() 
+		{
+			printf("\nCenter Pixel: %d, %d\n", center.x, center.y);
+			printf("Window Size: %d, %d\n", windowSize, windowSize);
+			printf("linModelCoeffs: %.12f, %.12f\n", linModelCoeffs(0,0), linModelCoeffs(1,0));
+			printf("nominatorPredError: %.12f\n", nominatorPredError);
+			printf("predError: %.12f\n", predError);
+		}
 	};
 
 	class LPSamplingPlanner : public SamplingPlanner
@@ -72,7 +80,6 @@ namespace pbrt
 		
 
 	private:
-		const int adaptiveSampleStepSize = 4;
 
 		AdaptiveGrid grid;
 		std::vector<std::vector<vector_bool>> coverageMask;

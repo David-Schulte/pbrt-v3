@@ -107,7 +107,7 @@ namespace pbrt
 				int64_t kOpt = grid.fixedWindowSize;
 
 				LinearModel minErrorLinModel;
-				//for pixels that are part of the image but the kOpt window reaches over the border -> add coverage but dont add additional samples
+				//for pixels that are part of the image and the fixed window does not reach over the border
 				if (!(row - grid.fixedWindowSize / 2 < filmExtentResDiff/2 || row + grid.fixedWindowSize / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff/2 || column - grid.fixedWindowSize / 2 < filmExtentResDiff/2 || column + grid.fixedWindowSize / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff/2))
 				{
 					std::vector<LinearModel> linModels;
@@ -119,18 +119,9 @@ namespace pbrt
 					{
 						//LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2));
 						//linModels.push_back(linModel);
-
-						if (!linModels.empty())
-						{
-							//printf("\n\nLinear models not empty!!!\n\n");
-							//printf("\n\nPrevios linear models error: %f\n\n", linModels.back().predError);
-							//printf("\n\nPrevios nominator linear models error: %f\n\n", linModels.back().nominatorPredError);
-							linModels.push_back(computeLinearModelAndPredictionError(linModels.back(), adaptiveWindowSize, initialRenderFilm, Point2i(row - filmExtentResDiff/2, column - filmExtentResDiff/2)));
-						}
-						else
-						{
-							linModels.push_back(computeLinearModelAndPredictionError(LinearModel(), adaptiveWindowSize, initialRenderFilm, Point2i(row - filmExtentResDiff/2, column - filmExtentResDiff/2)));
-						}
+						LinearModel prevModel = linModels.empty() ? LinearModel() : linModels.back();
+						LinearModel currentModel = computeLinearModelAndPredictionError(prevModel, adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2));
+						linModels.push_back(currentModel);
 					}
 					int minErrorLinModelIdx = findMinErrorLinModelIdx(linModels);
 					minErrorLinModel = linModels[minErrorLinModelIdx];
@@ -232,14 +223,19 @@ namespace pbrt
 			{
 				// TODO: Normalize rgb values with pixel filterWeightSum (see WriteImage at film.cpp).
 				initialRenderFilm[row][column] = rawPixelData(film->GetPixel(Point2i(row, column)).xyz);
+				//DEBUG ONLY
+				//Float randomValues[3] = { rand() % 256, rand() % 256, rand() % 256 };
+				//initialRenderFilm[row][column] = rawPixelData(randomValues);
+				//
+
 				Float* rgb = new Float[3];
 				//std::unique_ptr<Float[]> rgb(new Float[3]);
-				XYZToRGB(initialRenderFilm[row][column].rgb, &rgb[3]);
+			/*	XYZToRGB(initialRenderFilm[row][column].rgb, &rgb[3]);
 				initialRenderFilm[row][column].rgb[0] = clamp(rgb[0], 0, std::numeric_limits<Float>::max());
 				initialRenderFilm[row][column].rgb[1] = clamp(rgb[1], 0, std::numeric_limits<Float>::max());
-				initialRenderFilm[row][column].rgb[2] = clamp(rgb[2], 0, std::numeric_limits<Float>::max());
+				initialRenderFilm[row][column].rgb[2] = clamp(rgb[2], 0, std::numeric_limits<Float>::max());*/
 				/*
-				if (rgb[0] > maxColorChannelRGBVal)
+				/*if (rgb[0] > maxColorChannelRGBVal)
 				{ 
 					maxColorChannelRGBVal = rgb[0];
 				}
@@ -318,17 +314,17 @@ namespace pbrt
 
 		for (int i = 0; i < adaptiveWindowSize*adaptiveWindowSize; i++)
 		{
-			result(i,0) = 1;
+			result(i, 0) = 1;
 		}
 		for (int i = 0; i < adaptiveWindowSize; i++)
 		{
 			for (int j = 0; j < adaptiveWindowSize; j++)
 			{
-				int row = centerPixel.x - adaptiveWindowSize / 2 + i;
-				int column = centerPixel.y - adaptiveWindowSize / 2 + j;
-				result(i*adaptiveWindowSize + j, 1) = (rawPixelData[row][column].xyz[0] - rawPixelData[centerPixel.x][centerPixel.y].xyz[0]
-													+ rawPixelData[row][column].xyz[1] - rawPixelData[centerPixel.x][centerPixel.y].xyz[1]
-													+ rawPixelData[row][column].xyz[2] - rawPixelData[centerPixel.x][centerPixel.y].xyz[2]) / 3.0;
+				int row = centerPixel.y - adaptiveWindowSize / 2 + i;
+				int column = centerPixel.x - adaptiveWindowSize / 2 + j;
+				result(i*adaptiveWindowSize + j, 1) = ((rawPixelData[column][row].xyz[0] - rawPixelData[centerPixel.x][centerPixel.y].xyz[0])
+					+ (rawPixelData[column][row].xyz[1] - rawPixelData[centerPixel.x][centerPixel.y].xyz[1])
+					+ (rawPixelData[column][row].xyz[2] - rawPixelData[centerPixel.x][centerPixel.y].xyz[2])) / 3.0;
 			}
 		}
 
@@ -346,11 +342,11 @@ namespace pbrt
 			{
 				//if (i != j)
 				//{
-				int row = centerPixel.x - adaptiveWindowSize / 2 + i;
-				int column = centerPixel.y - adaptiveWindowSize / 2 + j;
-				result(i*adaptiveWindowSize + j) = (rawPixelData[row][column].xyz[0]
-												+ rawPixelData[row][column].xyz[1]
-												+ rawPixelData[row][column].xyz[2]) / 3.0;
+				int row = centerPixel.y - adaptiveWindowSize / 2 + i;
+				int column = centerPixel.x - adaptiveWindowSize / 2 + j;
+				result(i*adaptiveWindowSize + j) = (rawPixelData[column][row].xyz[0]
+												+ rawPixelData[column][row].xyz[1]
+												+ rawPixelData[column][row].xyz[2]) / 3.0;
 				// Not sure here!
 				//result(i*adaptiveWindowSize + j, 2) = rawPixelData[centerPixel.x][centerPixel.y].xyz[1] - rawPixelData[i][j].xyz[1];
 				//result(i*adaptiveWindowSize + j, 3) = rawPixelData[centerPixel.x][centerPixel.y].xyz[2] - rawPixelData[i][j].xyz[2];
@@ -360,7 +356,7 @@ namespace pbrt
 		return result;
 	}
 
-	LinearModel LPSamplingPlanner::computeLinearModelAndPredictionError(const LinearModel previousLinModel, int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
+	LinearModel LPSamplingPlanner::computeLinearModelAndPredictionError(const LinearModel previousLinModel, const int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, const Point2i centerPixel)
 	{
 		LinearModel result;
 
@@ -378,11 +374,11 @@ namespace pbrt
 
 		Eigen::MatrixXd augmentedA(A.rows(), A.cols() + B.cols());
 		augmentedA << A, B;
-
+		
 		//result.linModelCoeffs = Eigen::VectorXd(adaptiveWindowSize, Y.cols());
 		Eigen::FullPivLU<Eigen::MatrixXd> LU_A = A.fullPivLu();
 		////if (LU_A.isInvertible() || adaptiveWindowSize <= 3)
-		if (A.fullPivLu().rank() == augmentedA.fullPivLu().rank() || adaptiveWindowSize <= 3)
+		if (A.fullPivLu().rank() == augmentedA.fullPivLu().rank())
 		{
 			//printf("\n\nCompute linear model!!!\n\n");
 			result.linModelCoeffs = LU_A.solve(B);
@@ -392,23 +388,23 @@ namespace pbrt
 
 			//printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////");
 			////std::cout << "\n\n LinModelCoeffs result (matrix): \n" << result.linModelCoeffs << std::endl << std::endl;
-			//printf("\nLinModelCoeffs result (matrix): [ %.12f , %.12f ]\n", result.linModelCoeffs(0, 0), result.linModelCoeffs(1, 0));
-			//printf("Prediction error: %.50f\n\n", result.predError);
-			//printf("Current adaptive window size: %d\n\n", adaptiveWindowSize);
+			/*printf("\nLinModelCoeffs result (matrix): [ %.12f , %.12f ]\n", result.linModelCoeffs(0, 0), result.linModelCoeffs(1, 0));
+			printf("Prediction error: %.50f\n\n", result.predError);
+			printf("Current adaptive window size: %d\n\n", adaptiveWindowSize);*/
 			//printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
 		}
 		else 
 		{
-		//	printf("\n\nNo update, since Ax=b not (uniquely) solveable for size %d!**************************************************\n\n", adaptiveWindowSize);
+			//printf("\n\nNo update, since Ax=b not (uniquely) solveable for size %d!**************************************************\n\n", adaptiveWindowSize);
 			result.linModelCoeffs = Eigen::VectorXd::Zero(X.cols(),1);
 			result.predError = 0.0;
 		}
-
+		result.print();
 		return result;
 	}
 
 	// TODO: 1. Testing for correctness.
-	void LPSamplingPlanner::updatePredictionErrorEstimate(LinearModel &linModel, const LinearModel previousLinModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd Xc, Eigen::MatrixXd Yc)
+	void LPSamplingPlanner::updatePredictionErrorEstimate(LinearModel& linModel, const LinearModel previousLinModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, const Eigen::MatrixXd Xc, const Eigen::MatrixXd Yc)
 	{
 		std::vector<Float> linModelErrors;
 		Eigen::MatrixXd XcT;
@@ -451,14 +447,9 @@ namespace pbrt
 
 						//std::cout << "\n\n Error XcT result (matrix): \n" << XcT << std::endl << std::endl;
 
-						//std::cout << "\n\n Error Pc result (matrix): \n" << Pc << std::endl << std::endl;
+						//std::cout << "\n\n Error Pc result (matrix): \n" << Pc << std::endl << std::endl
 
-						if (std::numeric_limits<Float>::epsilon() == denominator || denominator == 0.0)
-						{
-						printf("\n\nNominator / Denominator (prediction error, window size 3): [ %f / %f ]\n\n", nominator, denominator);
-						}
-
-						Eigen::MatrixXd denomnatorMatrix = (Xc.row(i) * Pc * Xc.row(i).transpose());
+						//Eigen::MatrixXd denomnatorMatrix = (Xc.row(i) * Pc * Xc.row(i).transpose());
 						//std::cout << "\n\nZT: \n" << Xc.row(i) << std::endl;
 						//std::cout << "\nZ:   \n" << Xc.row(i).transpose() << std::endl << std::endl;
 						//std::cout << "\n\n Error denominator result (matrix) (Xc.row(i).transpose() * Pc * Xc.row(i)): \n" << denomnatorMatrix(0, 0) << std::endl << std::endl;
@@ -480,9 +471,11 @@ namespace pbrt
 					linModelError = previousLinModel.nominatorPredError;
 					int r = (windowSize / 2);
 
-					//printf("\n//////////////////////////////////////////////////////////////////////////////\n");
-					//printf("Previous linear model [prediction error , current adaptive window size]: [%f , %d]\n", linModelError, windowSize);
-					//printf("//////////////////////////////////////////////////////////////////////////////\n");
+				/*	printf("\n//////////////////////////////////////////////////////////////////////////////\n");
+					printf("Previous linear model [prediction error , current adaptive window size]: [%f , %d]\n", linModelError, windowSize);
+					printf("//////////////////////////////////////////////////////////////////////////////\n");
+					std::cout << "\n\n previousLinModel.linModelCoeffs.transpose(): \n" << previousLinModel.linModelCoeffs.transpose() << std::endl << std::endl;
+*/
 
 					for (int i = 0; i < (windowSize * windowSize - 1); i++)
 					{
@@ -495,7 +488,6 @@ namespace pbrt
 							//Float nominator = (linModel.linModelCoeffs.row(i)*Xc.row(i).transpose())(0, 0) - Yc(i);
 							//Float denominator = (Float)((2 * outerRingLength + 1) * (2 * outerRingLength + 1));
 
-							//std::cout << "\n\n previousLinModel.linModelCoeffs.transpose(): \n" << previousLinModel.linModelCoeffs.transpose() << std::endl << std::endl;
 							//std::cout << "\n\n Xc.row(" << i << ").transpose(): \n" << Xc.row(i).transpose() << std::endl << std::endl;
 							//std::cout << "\n\n Yc(" << i << "): \n" << Yc(i) << std::endl << std::endl;
 
@@ -508,8 +500,6 @@ namespace pbrt
 							Float tmpLinModelError = (previousLinModel.linModelCoeffs.transpose()*Xc.row(i).transpose())(0, 0) - Yc(i);
 							newLinModelError += (tmpLinModelError*tmpLinModelError);
 						}
-						else
-							continue;
 					}
 					linModelError += newLinModelError;
 					linModel.nominatorPredError = linModelError;
@@ -543,9 +533,9 @@ namespace pbrt
 			}
 		}
 
-		printf("\n//////////////////////////////////////////////////////////////////////////////\n");
+		/*printf("\n//////////////////////////////////////////////////////////////////////////////\n");
 		printf("====Min error linear model [window size , prediction error , [center.x , center.y]]: [%d , %f , [%d , %d] ]\n", linModels[minLinModelErrorIdx].windowSize, linModels[minLinModelErrorIdx].predError, linModels[minLinModelErrorIdx].center.x, linModels[minLinModelErrorIdx].center.y);
-		printf("//////////////////////////////////////////////////////////////////////////////\n");
+		printf("/*//////////////////////////////////////////////////////////////////////////////\n");
 
 		return minLinModelErrorIdx;
 	}
