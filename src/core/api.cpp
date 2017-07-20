@@ -712,7 +712,9 @@ std::shared_ptr<Adaptive_Evaluater> MakeAdaptiveEvaluater(const std::string &nam
 		adaptive_Evaluater = CreateNLMeans(film, samplebudget, r, f, k);
 	}
 	else
-		Warning("Sampler \"%s\" unknown.", name.c_str());
+	{
+		Warning("AdaptiveSampler \"%s\" unknown.", name.c_str());
+	}
 	paramSet.ReportUnused();
 	return std::shared_ptr<Adaptive_Evaluater>(adaptive_Evaluater);
 }

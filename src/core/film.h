@@ -52,9 +52,10 @@ namespace pbrt {
 struct FilmTilePixel {
     Spectrum contribSum = 0.f;
     Float filterWeightSum = 0.f;
-	int sampleCount = 0;
+	Float sampleCount = 0;
+	// Sum of squared differences to the mean value
+	Float SumOfSqrdDiffsToMean[3];
 	Float mean[3];
-	Float sample_variance[3];
 };
 
 // Film Declarations
@@ -84,14 +85,16 @@ class Film {
 
     // Film Private Data
     struct Pixel {
-        Pixel() { xyz[0] = xyz[1] = xyz[2] = filterWeightSum = 0; }
+		Pixel() { xyz[0] = xyz[1] = xyz[2] = sampleCount = SumOfSqrdDiffsToMean[0] = SumOfSqrdDiffsToMean[1] = SumOfSqrdDiffsToMean[2] = mean[0] = mean[1] = mean[2] = filterWeightSum = 0; }
         Float xyz[3];
         Float filterWeightSum;
         AtomicFloat splatXYZ[3];
-		Float sample_variance[3];
-		int sampleCount = 0;
+	
+		Float sampleCount ;
+		Float SumOfSqrdDiffsToMean[3];
 		Float mean[3];
-        Float pad;
+
+ //       Float pad;
     };
 	std::unique_ptr<Pixel[]> pixels;
 	private:
@@ -124,6 +127,14 @@ class FilmTile {
           filterTableSize(filterTableSize),
           maxSampleLuminance(maxSampleLuminance) {
         pixels = std::vector<FilmTilePixel>(std::max(0, pixelBounds.Area()));
+		for (FilmTilePixel& p : pixels)
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				p.SumOfSqrdDiffsToMean[i] = 0.f;
+				p.mean[i] = 0.f;
+			}
+		}
     }
     void AddSample(const Point2f &pFilm, Spectrum L,
                    Float sampleWeight = 1.) {
@@ -166,10 +177,16 @@ class FilmTile {
 
 				// store and update additional pixel statistics
 				pixel.sampleCount++;
-				//Float sample_contrib_rgb = 
+				// mean and variance after https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm 
 				Float old_mean[3] = { pixel.mean[0], pixel.mean[1], pixel.mean[2] };
-				Float old_variance[3] = { pixel.sample_variance[0], pixel.sample_variance[1], pixel.sample_variance[2] };
+				Float x_n[3] = { pixel.contribSum[0] * 1.f / pixel.filterWeightSum, pixel.contribSum[1] * 1.f / pixel.filterWeightSum, pixel.contribSum[2] * 1.f / pixel.filterWeightSum };
+				pixel.mean[0] = (x_n[0] - old_mean[0]) / pixel.sampleCount;
+				pixel.mean[1] = (x_n[1] - old_mean[1]) / pixel.sampleCount;
+				pixel.mean[2] = (x_n[2] - old_mean[2]) / pixel.sampleCount;
 
+				pixel.SumOfSqrdDiffsToMean[0] += (x_n[0] - old_mean[0]) * (x_n[0] - pixel.mean[0]);
+				pixel.SumOfSqrdDiffsToMean[1] += (x_n[1] - old_mean[1]) * (x_n[1] - pixel.mean[1]);
+				pixel.SumOfSqrdDiffsToMean[2] += (x_n[2] - old_mean[2]) * (x_n[2] - pixel.mean[2]);
 
             }
         }

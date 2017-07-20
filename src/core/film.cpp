@@ -124,7 +124,14 @@ void Film::MergeFilmTile(std::unique_ptr<FilmTile> tile) {
         Pixel &mergePixel = GetPixel(pixel);
         Float xyz[3];
         tilePixel.contribSum.ToXYZ(xyz);
-        for (int i = 0; i < 3; ++i) mergePixel.xyz[i] += xyz[i];
+		for (int i = 0; i < 3; ++i)
+		{
+			mergePixel.xyz[i] += xyz[i];
+			mergePixel.mean[i] = (mergePixel.sampleCount * mergePixel.mean[i] + tilePixel.sampleCount * tilePixel.mean[i]) / (mergePixel.sampleCount + tilePixel.sampleCount);
+			mergePixel.SumOfSqrdDiffsToMean[i] += (mergePixel.sampleCount * mergePixel.SumOfSqrdDiffsToMean[i] + tilePixel.sampleCount * tilePixel.SumOfSqrdDiffsToMean[i]) / (mergePixel.sampleCount + tilePixel.sampleCount);
+
+		}
+		mergePixel.sampleCount += tilePixel.sampleCount;
         mergePixel.filterWeightSum += tilePixel.filterWeightSum;
     }
 }

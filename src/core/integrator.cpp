@@ -436,7 +436,7 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 	const int tileSize = 16;
 	Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
 		(sampleExtent.y + tileSize - 1) / tileSize);
-	a_eval->initialize();
+
 	do
 	{
 		ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
@@ -461,7 +461,7 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 				// Get _FilmTile_ for tile
 				std::unique_ptr<FilmTile> filmTile =
 					camera->film->GetFilmTile(tileBounds);
-
+				
 				// Loop over pixels in tile to render them
 				for (Point2i pixel : tileBounds) {
 					{
@@ -477,7 +477,7 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 					unsigned int doneSampleCount = a_eval->getDoneSampleCount(pixel);
 					unsigned int sampleCount = a_eval->getSampleCount(pixel);
 					tileSampler->SetSampleNumber(doneSampleCount);
-					for (; doneSampleCount < sampleCount; tileSampler->SetSampleNumber(++doneSampleCount))
+					for (int i = 0 ; i < sampleCount; i++ , tileSampler->SetSampleNumber(++doneSampleCount))
 					{
 						// Initialize _CameraSample_ for current sample
 						CameraSample cameraSample =
@@ -530,6 +530,7 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 						// value
 						arena.Reset();
 					}
+					a_eval->setDoneSampleCount(pixel, doneSampleCount);
 				}
 				LOG(INFO) << "Finished image tile " << tileBounds;
 

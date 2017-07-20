@@ -12,9 +12,9 @@ namespace pbrt {
 		virtual ~Adaptive_Evaluater();
 		virtual bool hasNextIteration() = 0 ;
 		virtual unsigned int getDoneSampleCount(Point2i p0) = 0;
+		virtual void setDoneSampleCount(Point2i p0, unsigned int count) = 0;
 		virtual unsigned int getSampleCount(Point2i p0) = 0;
 		virtual void updateSampleMap() = 0;
-		virtual void initialize() = 0;
 	};
 }
 #endif

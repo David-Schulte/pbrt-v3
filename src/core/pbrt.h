@@ -81,6 +81,7 @@ namespace pbrt {
 class Scene;
 class Integrator;
 class SamplerIntegrator;
+class AdaptiveSamplerIntegrator;
 template <typename T>
 class Vector2;
 template <typename T>

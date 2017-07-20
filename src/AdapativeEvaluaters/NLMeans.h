@@ -7,14 +7,24 @@ namespace pbrt {
 	
 	class NLMeans : public Adaptive_Evaluater
 	{
+	// flat vector for pixel in a Patch
+	typedef std::vector < pbrt::Point2i > Patch;
+		
+	// flat vector for pixel
+	typedef std::vector < pbrt::Point2i > Neighbourhood;
+		
+	// unique ptr on flat array of Pixel
+	typedef pbrt::Film::Pixel* Pixel_Buffer;
+
 	public:
 		NLMeans(Film* film, int sampleBudget, int r, int f, double k);
 		~NLMeans();
 		bool hasNextIteration();
 		unsigned int getDoneSampleCount(Point2i p0);
+		void setDoneSampleCount(Point2i p0, unsigned int count);
 		unsigned int getSampleCount(Point2i p0);
-		void updateSampleMap() _NOEXCEPT;
-		void initialize();
+		void updateSampleMap();
+		
 	private:
 		// Reference to the film the camera holds and 
 		Film* m_film;
@@ -28,8 +38,12 @@ namespace pbrt {
 		int m_sampleBudget;
 		// m_r describes the size of the square neighborhood   used size in calculations is 2r + 1
 		int m_r;
+		// m_nghbSize is the nr of elements in a neighborhood
+		int m_nghbSize;
 		// m_f describes the size of the square patches   used size in caculations is 2f + 1
 		int m_f;
+		// nr of elements in a patch
+		int m_patchSize;
 		// m_k is the user specified damping factor which controls the strengt of the filter. Lower value results in a more conservative filter
 		double m_k;
 		// epsilon  used during distance computation so prevent division by zero
@@ -38,6 +52,37 @@ namespace pbrt {
 		std::vector< std::vector < unsigned int > > m_sampleMap;
 		// map which stores how often a pixel got sampled
 		std::vector< std::vector < unsigned int > > m_doneSampleMap;
+
+		int m_xResolution = 0;
+		int m_yResolution = 0;
+		int m_active_buffer = 0;
+
+		void intialize();
+
+		void bufferXYZtoRGB(Pixel_Buffer buff);
+
+		void bufferRGBtoXYZ(Pixel_Buffer buff);
+		
+		// neighbourhood size is r * r + 1
+		Neighbourhood createNeighbourhoodOfPoint(pbrt::Point2i p, Pixel_Buffer buffer, int r);
+		
+		Patch createPatchInNeighbourhoodOfPoint(pbrt::Point2i p, Neighbourhood neighbourhood, int r, int f);
+	
+		// Pixel should be in RGB and divided by filter sum here, specifiy distance in which color channel with channel parameter
+		Float distanceBetweenTwoPixel(pbrt::Film::Pixel& p, pbrt::Film::Pixel& q, int channel);
+		
+		Float weight(pbrt::Point2i p, pbrt::Point2i q, NLMeans::Neighbourhood ngbh, int r, int f, double k, Pixel_Buffer buffer);
+
+		Float finalPatchWeight(pbrt::Point2i p, pbrt::Point2i q, int r, int f, double k);
+		
+		// caalculates average distane between pixels in a patch
+		Float distanceBetweenTwoPatches(Patch P, Patch Q, int f, Pixel_Buffer buffer);
+
+		// filter a single Point
+		void filterPoint(pbrt::Point2i p, Float* u, Pixel_Buffer A, Pixel_Buffer B);
+
+		// filter complete buffer A with weights from buffer B
+		void filter(Pixel_Buffer A, Pixel_Buffer B, Pixel_Buffer C);
 	};
 
 	NLMeans *CreateNLMeans(Film* film, int samplesPerPixel, int r, int f, double k);
