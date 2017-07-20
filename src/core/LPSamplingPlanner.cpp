@@ -115,7 +115,7 @@ namespace pbrt
 					//TODO: Compute linear model here and estimate error of model
 					//TODO (probably): Imlement k(r) reparametrization as in the paper. 
 					// Compute linear models.
-					for (int adaptiveWindowSize = 1; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
+					for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
 					{
 						//LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2));
 						//linModels.push_back(linModel);
@@ -302,7 +302,7 @@ namespace pbrt
 				continue;
 			}
 			plannedSampleNumber *= additionalSampleStep;
-			tmpModifiedError /= 100.0;
+			tmpModifiedError /= 10.0;
 		}
 		return plannedSampleNumber;
 	}
@@ -346,11 +346,11 @@ namespace pbrt
 			{
 				//if (i != j)
 				//{
-				int row = centerPixel.y - adaptiveWindowSize / 2 + i;
-				int column = centerPixel.x - adaptiveWindowSize / 2 + j;
-				result(i*adaptiveWindowSize + j) = (rawPixelData[column][row].xyz[0]
-												+ rawPixelData[column][row].xyz[1]
-												+ rawPixelData[column][row].xyz[2]) / 3.0;
+				int row = centerPixel.x - adaptiveWindowSize / 2 + i;
+				int column = centerPixel.y - adaptiveWindowSize / 2 + j;
+				result(i*adaptiveWindowSize + j) = (rawPixelData[row][column].xyz[0]
+												+ rawPixelData[row][column].xyz[1]
+												+ rawPixelData[row][column].xyz[2]) / 3.0;
 				// Not sure here!
 				//result(i*adaptiveWindowSize + j, 2) = rawPixelData[centerPixel.x][centerPixel.y].xyz[1] - rawPixelData[i][j].xyz[1];
 				//result(i*adaptiveWindowSize + j, 3) = rawPixelData[centerPixel.x][centerPixel.y].xyz[2] - rawPixelData[i][j].xyz[2];
@@ -370,8 +370,8 @@ namespace pbrt
 		Eigen::MatrixXd X = constructXc(adaptiveWindowSize, featureDim);
 		Eigen::VectorXd Y = constructYc(adaptiveWindowSize, rawPixelData, centerPixel);
 
-		std::cout << "\n\n X: \n" << X << std::endl << std::endl;
-		std::cout << "\n\n Y: \n" << Y << std::endl << std::endl;
+		//std::cout << "\n\n X: \n" << X << std::endl << std::endl;
+		//std::cout << "\n\n Y: \n" << Y << std::endl << std::endl;
 
 		Eigen::MatrixXd A = X.transpose()*X;
 		Eigen::VectorXd B = X.transpose()*Y;
@@ -404,6 +404,9 @@ namespace pbrt
 			result.predError = 0.0;
 		}
 		//result.print();
+		
+		//result.linModelCoeffs = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(B);
+
 		return result;
 	}
 
@@ -538,9 +541,9 @@ namespace pbrt
 			}
 		}
 
-		/*printf("\n//////////////////////////////////////////////////////////////////////////////\n");
+		printf("\n//////////////////////////////////////////////////////////////////////////////\n");
 		printf("====Min error linear model [window size , prediction error , [center.x , center.y]]: [%d , %f , [%d , %d] ]\n", linModels[minLinModelErrorIdx].windowSize, linModels[minLinModelErrorIdx].predError, linModels[minLinModelErrorIdx].center.x, linModels[minLinModelErrorIdx].center.y);
-		printf("/*//////////////////////////////////////////////////////////////////////////////\n");
+		printf("//////////////////////////////////////////////////////////////////////////////\n");
 
 		return minLinModelErrorIdx;
 	}
@@ -802,19 +805,41 @@ namespace pbrt
 
 		int fixedWindowSize = 5;
 
+		Float fillVal = 1.0;
+
 		std::vector<std::vector<rawPixelData>> testAllEqualPixelData = std::vector<std::vector<rawPixelData>>(fixedWindowSize, std::vector<rawPixelData>(fixedWindowSize, rawPixelData()));
+
+		int cut = 2;
+
+		Float fillVal2 = 2;
 
 		for (int i = 0; i < fixedWindowSize; i++)
 		{
 			for (int j = 0; j < fixedWindowSize; j++)
 			{
-				testAllEqualPixelData[i][j].xyz[0] = i * fixedWindowSize + j;
-				testAllEqualPixelData[i][j].xyz[1] = i * fixedWindowSize + j;
-				testAllEqualPixelData[i][j].xyz[2] = i * fixedWindowSize + j;
+				if (i>=cut)
+				{
+					//fillVal = i * fixedWindowSize + j;
+					testAllEqualPixelData[i][j].xyz[0] = fillVal2;
+					testAllEqualPixelData[i][j].xyz[1] = fillVal2;
+					testAllEqualPixelData[i][j].xyz[2] = fillVal2;
 
-				testAllEqualPixelData[i][j].rgb[0] = i * fixedWindowSize + j;
-				testAllEqualPixelData[i][j].rgb[1] = i * fixedWindowSize + j;
-				testAllEqualPixelData[i][j].rgb[2] = i * fixedWindowSize + j;
+					testAllEqualPixelData[i][j].rgb[0] = fillVal2;
+					testAllEqualPixelData[i][j].rgb[1] = fillVal2;
+					testAllEqualPixelData[i][j].rgb[2] = fillVal2;
+				}
+				else 
+				{
+					//fillVal = i * fixedWindowSize + j;
+					testAllEqualPixelData[i][j].xyz[0] = fillVal;
+					testAllEqualPixelData[i][j].xyz[1] = fillVal;
+					testAllEqualPixelData[i][j].xyz[2] = fillVal;
+
+					testAllEqualPixelData[i][j].rgb[0] = fillVal;
+					testAllEqualPixelData[i][j].rgb[1] = fillVal;
+					testAllEqualPixelData[i][j].rgb[2] = fillVal;
+				}
+
 			}
 		}
 
