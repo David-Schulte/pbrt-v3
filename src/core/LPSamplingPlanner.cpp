@@ -120,7 +120,7 @@ namespace pbrt
 						//LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2));
 						//linModels.push_back(linModel);
 						LinearModel prevModel = linModels.empty() ? LinearModel() : linModels.back();
-						LinearModel currentModel = computeLinearModelAndPredictionError(prevModel, adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2));
+						LinearModel currentModel = computeLinearModelAndPredictionError(prevModel, adaptiveWindowSize, initialRenderFilm, Point2i(row - (filmExtentResDiff / 2), column - (filmExtentResDiff / 2)));
 						linModels.push_back(currentModel);
 					}
 					int minErrorLinModelIdx = findMinErrorLinModelIdx(linModels);
@@ -327,7 +327,7 @@ namespace pbrt
 				{
 					Eigen::VectorXd feature(featureDim);
 					feature<<(Float)row, (Float)column;
-					result(row*adaptiveWindowSize + column, featureIdx+1) = feature(featureIdx) - adaptiveWindowSize/2;
+					result(row * adaptiveWindowSize + column, featureIdx+1) = feature(featureIdx) - adaptiveWindowSize/2;
 				}
 			}
 		}
@@ -346,11 +346,11 @@ namespace pbrt
 			{
 				//if (i != j)
 				//{
-				int row = centerPixel.x - adaptiveWindowSize / 2 + i;
-				int column = centerPixel.y - adaptiveWindowSize / 2 + j;
-				result(i*adaptiveWindowSize + j) = (rawPixelData[row][column].xyz[0]
-												+ rawPixelData[row][column].xyz[1]
-												+ rawPixelData[row][column].xyz[2]) / 3.0;
+				int row = centerPixel.y - adaptiveWindowSize / 2 + i;
+				int column = centerPixel.x - adaptiveWindowSize / 2 + j;
+				result(i*adaptiveWindowSize + j) = (rawPixelData[column][row].xyz[0]
+												+ rawPixelData[column][row].xyz[1]
+												+ rawPixelData[column][row].xyz[2]) / 3.0;
 				// Not sure here!
 				//result(i*adaptiveWindowSize + j, 2) = rawPixelData[centerPixel.x][centerPixel.y].xyz[1] - rawPixelData[i][j].xyz[1];
 				//result(i*adaptiveWindowSize + j, 3) = rawPixelData[centerPixel.x][centerPixel.y].xyz[2] - rawPixelData[i][j].xyz[2];
