@@ -214,8 +214,8 @@ namespace pbrt
 		rawPixelData initValues = rawPixelData();
 		initialRenderFilm = std::vector<std::vector<rawPixelData>>(film->fullResolution.x, std::vector<rawPixelData>(film->fullResolution.y, initValues));
 
-		//Float maxColorChannelRGBVal = std::numeric_limits<Float>::min();
-		//Float maxColorChannelXYZVal = std::numeric_limits<Float>::min();
+		Float maxColorChannelRGBVal = std::numeric_limits<Float>::min();
+		Float maxColorChannelXYZVal = std::numeric_limits<Float>::min();
 
 		for (int row = 0; row < film->fullResolution.x; row++)
 		{
@@ -229,37 +229,50 @@ namespace pbrt
 				//
 
 				Float* rgb = new Float[3];
+
 				//std::unique_ptr<Float[]> rgb(new Float[3]);
-			/*	XYZToRGB(initialRenderFilm[row][column].rgb, &rgb[3]);
-				initialRenderFilm[row][column].rgb[0] = clamp(rgb[0], 0, std::numeric_limits<Float>::max());
-				initialRenderFilm[row][column].rgb[1] = clamp(rgb[1], 0, std::numeric_limits<Float>::max());
-				initialRenderFilm[row][column].rgb[2] = clamp(rgb[2], 0, std::numeric_limits<Float>::max());*/
-				/*
-				/*if (rgb[0] > maxColorChannelRGBVal)
-				{ 
-					maxColorChannelRGBVal = rgb[0];
-				}
-				if (rgb[1] > maxColorChannelRGBVal)
-				{
-					maxColorChannelRGBVal = rgb[1];
-				}
-				if (rgb[2] > maxColorChannelRGBVal)
-				{
-					maxColorChannelRGBVal = rgb[2];
+				XYZToRGB(initialRenderFilm[row][column].xyz, &rgb[0], true);
+				//printf("\n\nInitial RGB values (before normalization): [ %f , %f , %f ]\n\n", rgb[0], rgb[1], rgb[2]);
+				// Normalize pixel with weight sum
+				Float filterWeightSum = film->GetPixel(Point2i(row, column)).filterWeightSum;
+				if (filterWeightSum != 0) {
+					Float invWt = (Float)1 / filterWeightSum;
+					rgb[0] = std::max((Float)0, rgb[0] * invWt);
+					rgb[1] = std::max((Float)0, rgb[1] * invWt);
+					rgb[2] = std::max((Float)0, rgb[2] * invWt);
 				}
 
-				if (initialRenderFilm[row][column].xyz[0] > maxColorChannelXYZVal)
-				{
-					maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[0];
-				}
-				if (initialRenderFilm[row][column].xyz[1] > maxColorChannelXYZVal)
-				{
-					maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[1];
-				}
-				if (initialRenderFilm[row][column].xyz[2] > maxColorChannelXYZVal)
-				{
-					maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[2];
-				}*/
+				initialRenderFilm[row][column].rgb[0] = rgb[0];
+				initialRenderFilm[row][column].rgb[1] = rgb[1];
+				initialRenderFilm[row][column].rgb[2] = rgb[0];
+
+				//printf("\n\nInitial RGB values (after normalization): [ %f , %f , %f ]\n\n", rgb[0], rgb[1], rgb[2]);
+				//
+				//if (rgb[0] > maxColorChannelRGBVal)
+				//{ 
+				//	maxColorChannelRGBVal = rgb[0];
+				//}
+				//if (rgb[1] > maxColorChannelRGBVal)
+				//{
+				//	maxColorChannelRGBVal = rgb[1];
+				//}
+				//if (rgb[2] > maxColorChannelRGBVal)
+				//{
+				//	maxColorChannelRGBVal = rgb[2];
+				//}
+
+				//if (initialRenderFilm[row][column].xyz[0] > maxColorChannelXYZVal)
+				//{
+				//	maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[0];
+				//}
+				//if (initialRenderFilm[row][column].xyz[1] > maxColorChannelXYZVal)
+				//{
+				//	maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[1];
+				//}
+				//if (initialRenderFilm[row][column].xyz[2] > maxColorChannelXYZVal)
+				//{
+				//	maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[2];
+				//}
 				//printf("\n\nInitial RGB values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].rgb[0], initialRenderFilm[row][column].rgb[1], initialRenderFilm[row][column].rgb[2]);
 				//printf("\n\nInitial XYZ values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].xyz[0], initialRenderFilm[row][column].xyz[1], initialRenderFilm[row][column].xyz[2]);
 				delete[] rgb;
@@ -348,9 +361,9 @@ namespace pbrt
 				//{
 				int row = centerPixel.y - adaptiveWindowSize / 2 + i;
 				int column = centerPixel.x - adaptiveWindowSize / 2 + j;
-				result(i*adaptiveWindowSize + j) = (rawPixelData[column][row].xyz[0]
-												+ rawPixelData[column][row].xyz[1]
-												+ rawPixelData[column][row].xyz[2]) / 3.0;
+				result(i*adaptiveWindowSize + j) = (rawPixelData[column][row].rgb[0]
+												+ rawPixelData[column][row].rgb[1]
+												+ rawPixelData[column][row].rgb[2]) / 3.0;
 				// Not sure here!
 				//result(i*adaptiveWindowSize + j, 2) = rawPixelData[centerPixel.x][centerPixel.y].xyz[1] - rawPixelData[i][j].xyz[1];
 				//result(i*adaptiveWindowSize + j, 3) = rawPixelData[centerPixel.x][centerPixel.y].xyz[2] - rawPixelData[i][j].xyz[2];
