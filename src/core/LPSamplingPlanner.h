@@ -88,12 +88,15 @@ namespace pbrt
 		//bool initialRenderFilmReady;
 		bool finalRender;
 		int64_t numberCoveredPixels;
+		int32_t featureDim = 2;
+		int32_t minSamplesSend = 0;//DEBUG
+		int32_t maxSamplesSend = 0;//DEBUG
 
-		LinearModel computeLinearModelAndPredictionError(const LinearModel previousLinModel, int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel, int featureDim = 2);
+		LinearModel computeLinearModelAndPredictionError(const LinearModel previousLinModel, int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
 		void updatePredictionErrorEstimate(LinearModel &linModel, const LinearModel previousLinModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd Xc, Eigen::MatrixXd Yc);
 		
 		int findMinErrorLinModelIdx(std::vector<LinearModel> linModels, Float minErrorThreshold = 0.0001);
-		int64_t getPlannedSampleNumber(LinearModel minErrorLinModel, int64_t additionalSampleStep, Float invMinErrorThresholdFactor = 10000.0);
+		int64_t getPlannedSampleNumber(LinearModel minErrorLinModel, const pbrt::Point2i pixel, int32_t additionalSampleStep);
 		virtual void copyInitialRenderFilm(Film* film);
 		virtual Point2i computeMargin(Film* film);
 	};
