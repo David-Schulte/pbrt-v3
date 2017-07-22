@@ -34,10 +34,13 @@ namespace pbrt
         int maxPixelSamplesPerIteration; //For each iteration
 		bool firstIteration = true;
 
+		std::vector<Point2i> getAllCenterPixel() { return allCenterPixel; }
+
     protected:
 
         std::vector<std::vector<int64_t>> plannedSampleMap;				// Holds number of samples to be used in the current iteration.
 		std::vector<std::vector<int64_t>> currentSampleNumberMap;	// Accumulates _sampleMap_ entries elementwise (+=).
+		std::vector<Point2i> allCenterPixel;
         int sampleBudgetPerPixel;
 		int initialRenderSamplesPerPixels;
 		

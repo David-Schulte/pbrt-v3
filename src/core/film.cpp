@@ -165,7 +165,7 @@ void Film::AddSplat(const Point2f &p, Spectrum v) {
     for (int i = 0; i < 3; ++i) pixel.splatXYZ[i].Add(xyz[i]);
 }
 
-void Film::WriteImage(Float splatScale, const std::string &alternateName) {
+void Film::WriteImage(Float splatScale, const std::string &alternativeName) {
     // Convert image to RGB and compute final pixel values
     LOG(INFO) <<
         "Converting image to RGB and computing final weighted pixel values";
@@ -203,7 +203,7 @@ void Film::WriteImage(Float splatScale, const std::string &alternateName) {
         ++offset;
     }
 
-	if (alternateName == "")
+	if (alternativeName == "")
 	{
 		// Write RGB image
 		LOG(INFO) << "Writing image " << filename << " with bounds " <<
@@ -215,11 +215,11 @@ void Film::WriteImage(Float splatScale, const std::string &alternateName) {
 	else 
 	{
 		// Write RGB image
-		LOG(INFO) << "Writing image " << alternateName << " with bounds " <<
+		LOG(INFO) << "Writing image " << alternativeName << " with bounds " <<
 			croppedPixelBounds;
-		printf("\nFilename: %s\n\n", std::string(alternateName));
+		printf("\nFilename: %s\n\n", std::string(alternativeName));
 
-		pbrt::WriteImage(alternateName, &rgb[0], croppedPixelBounds, fullResolution);
+		pbrt::WriteImage(alternativeName+filename, &rgb[0], croppedPixelBounds, fullResolution);
 	}
 
 }

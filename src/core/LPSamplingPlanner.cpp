@@ -120,7 +120,9 @@ namespace pbrt
 						//LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2));
 						//linModels.push_back(linModel);
 						LinearModel prevModel = linModels.empty() ? LinearModel() : linModels.back();
-						LinearModel currentModel = computeLinearModelAndPredictionError(prevModel, adaptiveWindowSize, initialRenderFilm, Point2i(row - (filmExtentResDiff / 2), column - (filmExtentResDiff / 2)));
+						Point2i centerPixel = Point2i(row - (filmExtentResDiff / 2), column - (filmExtentResDiff / 2));
+						LinearModel currentModel = computeLinearModelAndPredictionError(prevModel, adaptiveWindowSize, initialRenderFilm, centerPixel);
+						allCenterPixel.push_back(centerPixel);
 						linModels.push_back(currentModel);
 					}
 					int minErrorLinModelIdx = findMinErrorLinModelIdx(linModels);
@@ -217,6 +219,8 @@ namespace pbrt
 		Float maxColorChannelRGBVal = std::numeric_limits<Float>::min();
 		Float maxColorChannelXYZVal = std::numeric_limits<Float>::min();
 
+		Float* rgb = new Float[3];
+
 		for (int row = 0; row < film->fullResolution.x; row++)
 		{
 			for (int column = 0; column < film->fullResolution.y; column++)
@@ -228,7 +232,7 @@ namespace pbrt
 				//initialRenderFilm[row][column] = rawPixelData(randomValues);
 				//
 
-				Float* rgb = new Float[3];
+
 
 				//std::unique_ptr<Float[]> rgb(new Float[3]);
 				XYZToRGB(initialRenderFilm[row][column].xyz, &rgb[0], true);
@@ -275,11 +279,12 @@ namespace pbrt
 				//}
 				//printf("\n\nInitial RGB values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].rgb[0], initialRenderFilm[row][column].rgb[1], initialRenderFilm[row][column].rgb[2]);
 				//printf("\n\nInitial XYZ values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].xyz[0], initialRenderFilm[row][column].xyz[1], initialRenderFilm[row][column].xyz[2]);
-				delete[] rgb;
+				
 			}
 		}
 		//printf("\n\nMaximum color channel RGB value: %f\n\n", maxColorChannelRGBVal);
 		//printf("\nMaximum color channel XYZ value: %f\n\n", maxColorChannelXYZVal);
+		delete[] rgb;
 	}
 
 	Point2i LPSamplingPlanner::computeMargin(Film * film)
@@ -385,38 +390,38 @@ namespace pbrt
 		Eigen::MatrixXd A = X.transpose()*X;
 		Eigen::VectorXd B = X.transpose()*Y;
 
-		//Eigen::MatrixXd augmentedA(A.rows(), A.cols() + B.cols());
-		//augmentedA << A, B;
-		//
-		////result.linModelCoeffs = Eigen::VectorXd(adaptiveWindowSize, Y.cols());
-		//Eigen::FullPivLU<Eigen::MatrixXd> LU_A = A.fullPivLu();
-		//////if (LU_A.isInvertible() || adaptiveWindowSize <= 3)
-		//if (A.fullPivLu().rank() == augmentedA.fullPivLu().rank())
-		//{
-		//	//printf("\n\nCompute linear model!!!\n\n");
-		//	result.linModelCoeffs = LU_A.solve(B);
+		Eigen::MatrixXd augmentedA(A.rows(), A.cols() + B.cols());
+		augmentedA << A, B;
+		
+		//result.linModelCoeffs = Eigen::VectorXd(adaptiveWindowSize, Y.cols());
+		Eigen::FullPivLU<Eigen::MatrixXd> LU_A = A.fullPivLu();
+		////if (LU_A.isInvertible() || adaptiveWindowSize <= 3)
+		if (A.fullPivLu().rank() == augmentedA.fullPivLu().rank())
+		{
+			//printf("\n\nCompute linear model!!!\n\n");
+			result.linModelCoeffs = LU_A.solve(B);
 
-		//	// Update prediction error of the linear model here.
-		//	updatePredictionErrorEstimate(result, previousLinModel, rawPixelData, X, Y);
+			// Update prediction error of the linear model here.
+			updatePredictionErrorEstimate(result, previousLinModel, rawPixelData, X, Y);
 
-		//	//printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////");
-		//	////std::cout << "\n\n LinModelCoeffs result (matrix): \n" << result.linModelCoeffs << std::endl << std::endl;
-		//	/*printf("\nLinModelCoeffs result (matrix): [ %.12f , %.12f ]\n", result.linModelCoeffs(0, 0), result.linModelCoeffs(1, 0));
-		//	printf("Prediction error: %.50f\n\n", result.predError);
-		//	printf("Current adaptive window size: %d\n\n", adaptiveWindowSize);*/
-		//	//printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
-		//}
-		//else 
-		//{
-		//	//printf("\n\nNo update, since Ax=b not (uniquely) solveable for size %d!**************************************************\n\n", adaptiveWindowSize);
-		//	result.linModelCoeffs = Eigen::VectorXd::Zero(X.cols(),1);
-		//	result.predError = 0.0;
-		//}
+			//printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////");
+			////std::cout << "\n\n LinModelCoeffs result (matrix): \n" << result.linModelCoeffs << std::endl << std::endl;
+			/*printf("\nLinModelCoeffs result (matrix): [ %.12f , %.12f ]\n", result.linModelCoeffs(0, 0), result.linModelCoeffs(1, 0));
+			printf("Prediction error: %.50f\n\n", result.predError);
+			printf("Current adaptive window size: %d\n\n", adaptiveWindowSize);*/
+			//printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
+		}
+		else 
+		{
+			//printf("\n\nNo update, since Ax=b not (uniquely) solveable for size %d!**************************************************\n\n", adaptiveWindowSize);
+			result.linModelCoeffs = Eigen::VectorXd::Zero(X.cols(),1);
+			result.predError = 0.0;
+		}
 		//result.print();
 		
 		//result.linModelCoeffs = A.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(B);
-		result.linModelCoeffs = X.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(Y);
-		updatePredictionErrorEstimate(result, previousLinModel, rawPixelData, X, Y);
+		//result.linModelCoeffs = X.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(Y);
+		//updatePredictionErrorEstimate(result, previousLinModel, rawPixelData, X, Y);
 
 		return result;
 	}
@@ -532,14 +537,14 @@ namespace pbrt
 		//printf("//////////////////////////////////////////////////////////////////////////////\n");
 	}
 
-	int LPSamplingPlanner::findMinErrorLinModelIdx(std::vector<LinearModel> linModels, Float minErrorThreshold)
+	int LPSamplingPlanner::findMinErrorLinModelIdx(std::vector<LinearModel> linModels)
 	{
 		Float minLinModelError = std::numeric_limits<Float>::max();
 		int minLinModelErrorIdx = 0;
 
 		for (int i = 0; i < linModels.size(); i++)
 		{
-			if (linModels[i].predError < minLinModelError && linModels[i].predError > minErrorThreshold)
+			if (linModels[i].predError <= minLinModelError)
 			{
 				minLinModelError = linModels[i].predError;
 				minLinModelErrorIdx = i;

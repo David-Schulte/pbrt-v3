@@ -57,15 +57,6 @@ inline void XYZToRGB(const Float xyz[3], Float rgb[3], bool printRGBXYZ=false) {
     rgb[0] = 3.240479f * xyz[0] - 1.537150f * xyz[1] - 0.498535f * xyz[2];
     rgb[1] = -0.969256f * xyz[0] + 1.875991f * xyz[1] + 0.041556f * xyz[2];
     rgb[2] = 0.055648f * xyz[0] - 0.204043f * xyz[1] + 1.057311f * xyz[2];
-
-	// DEBUG!!!
-	//if (printRGBXYZ)
-	//{
-	//	printf("\n\n//////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
-	//	printf("\n\nXYZ in XYZToRGB: [ %f , %f , %f ]\n\n", xyz[0], xyz[1], xyz[2]);
-	//	printf("\n\nRGB in XYZToRGB: [ %f , %f , %f ]\n\n", rgb[0], rgb[1], rgb[2]);
-	//	printf("//////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
-	//}
 }
 
 inline void RGBToXYZ(const Float rgb[3], Float xyz[3]) {

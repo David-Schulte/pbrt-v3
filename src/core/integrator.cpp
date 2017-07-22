@@ -250,7 +250,7 @@ void SamplerIntegrator::Render(const Scene &scene)
     {
 		if (!sampler->samplingPlanner->firstIteration && writeInputImage)
 		{
-			camera->film->WriteImage(1, "InputImage.png");
+			camera->film->WriteImage(1, "InputImage_");
 			writeInputImage = false;
 		}
 		
@@ -263,8 +263,40 @@ void SamplerIntegrator::Render(const Scene &scene)
         }, nTiles);
 
 		sampler->UpdateCurrentSampleNumberMap();
-    } 
-    while (sampler->StartNextIteration());
+    } while (sampler->StartNextIteration());
+
+	Float *debugRGB = new Float[sampleExtent.x*sampleExtent.y*3];
+
+	for (int row = 0; row < sampleExtent.x; row++)
+	{
+		for (int column = 0; column < sampleExtent.y; column++)
+		{
+			debugRGB[3 * (column * sampleExtent.x + row) + 0] = 1.0;
+			debugRGB[3 * (column * sampleExtent.x + row) + 1] = 1.0;
+			debugRGB[3 * (column * sampleExtent.x + row) + 2] = 1.0;
+		}
+	}
+
+	std::vector<Point2i> allCenterPixel = sampler->samplingPlanner->getAllCenterPixel();
+
+	for (int allCenterPixelIdx = 0; allCenterPixelIdx < allCenterPixel.size(); allCenterPixelIdx++)
+	{
+		int column = allCenterPixel[allCenterPixelIdx].y;
+		int row = allCenterPixel[allCenterPixelIdx].x;
+		debugRGB[3 * (column * sampleExtent.x + row) + 0] = 1.0;
+		debugRGB[3 * (column * sampleExtent.x + row) + 1] = 0.0;
+		debugRGB[3 * (column * sampleExtent.x + row) + 2] = 0.0;
+	}
+
+	allCenterPixel;
+
+	std::string name = camera->film->filename;
+	name = "Debug_" + name;
+
+	WriteImage(name, &debugRGB[0], sampleBounds, camera->film->fullResolution);
+
+	delete[] debugRGB;
+
     reporter.Done();
     LOG(INFO) << "Rendering finished";
     camera->film->WriteImage();
