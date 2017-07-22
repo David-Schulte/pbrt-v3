@@ -3,6 +3,7 @@
 #include "LPSamplingPlanner.h"
 #include "film.h"
 #include <array>
+#include <math.h>
 
 namespace pbrt
 {
@@ -21,7 +22,7 @@ namespace pbrt
 		{
 			//testMatrixInv();
 			//testLUFactorization();
-			predictionErrorEstimateTest();
+		//	predictionErrorEstimateTest();
 			//printf("\ninputFilm size: [%d, %d]\n", film->fullResolution.x, film->fullResolution.y);
 			//printf("\nCoverageMask size: [%d, %d]\n", coverageMask[0].size(), coverageMask.size());
 			//printf("\nSampleMap size: [%d, %d]\n", plannedSampleMap[0].size(), plannedSampleMap.size());
@@ -63,6 +64,8 @@ namespace pbrt
 		//all pixels covered --> use actual plannedSampleMap
 		if (numberCoveredPixels == film->fullResolution.x * film->fullResolution.y)
 		{
+			printf("\nminSamplesSend: %d\n", minSamplesSend);
+			printf("\nmaxSamplesSend: %d\n", maxSamplesSend);
 			Float averageSPP = 0;
 			for (int row = 0; row < temp_plannedSampleMap.size(); row++)
 			{
@@ -91,10 +94,9 @@ namespace pbrt
 			return;
 		}
 
-		//grid.margin = computeMargin(film);
-		for (int row = (grid.granularity / 2) + filmExtentResDiff/2 + grid.margin.x; row < plannedSampleMap.size() - filmExtentResDiff/2; row += grid.granularity)
+		for (int32_t row = (grid.granularity / 2) + filmExtentResDiff/2 + grid.margin.x; row < plannedSampleMap.size() - filmExtentResDiff/2; row += grid.granularity)
 		{
-			for (int column = (grid.granularity / 2) + filmExtentResDiff/2 + grid.margin.y; column < plannedSampleMap[0].size()- filmExtentResDiff/2; column += grid.granularity)
+			for (int32_t column = (grid.granularity / 2) + filmExtentResDiff/2 + grid.margin.y; column < plannedSampleMap[0].size()- filmExtentResDiff/2; column += grid.granularity)
 			{
 				//printf("Current center pixel: %d %d \n", row-2, column-2);
 				if (coverageMask[row][column].value) //center pixel is already covered
@@ -129,9 +131,9 @@ namespace pbrt
 					minErrorLinModel = linModels[minErrorLinModelIdx];
 					kOpt = minErrorLinModel.windowSize;
 				}
-				for (int x = row - kOpt / 2; x <= row + kOpt / 2; x++)
+				for (int32_t x = row - kOpt / 2; x <= row + kOpt / 2; x++)
 				{
-					for (int y = column - kOpt / 2; y <= column + kOpt / 2; y++)
+					for (int32_t y = column - kOpt / 2; y <= column + kOpt / 2; y++)
 					{
 						//printf("\nCenter pixel: [%d,%d]\n", row, column);
 						//printf("Current pixel to render with adaptive samples: [%d,%d]\n\n", x, y);
@@ -167,11 +169,8 @@ namespace pbrt
 							coverageMask[x][y].value = true;
 							//printf("\n number covered pixels: %d \n", numberCoveredPixels);
 						}
-						temp_plannedSampleMap[x][y] += getPlannedSampleNumber(minErrorLinModel, 2);
+						temp_plannedSampleMap[x][y] += getPlannedSampleNumber(minErrorLinModel, pbrt::Point2i(x,y), 2);
 						coverageMask[x][y].coverageCounter++;
-						//printf("xy already covered \n");
-						//printf("\n pixel covered by multiple models \n");
-						//TODO: what to do if a pixel is covered by multiple linear models?
 					}
 				}
 			}
@@ -301,27 +300,32 @@ namespace pbrt
 		return finalRender ? false : true;
 	}
 	
-	int64_t LPSamplingPlanner::getPlannedSampleNumber(LinearModel minErrorLinModel, int64_t additionalSampleStep, Float invMinErrorThresholdFactor)
+	int64_t LPSamplingPlanner::getPlannedSampleNumber(LinearModel minErrorLinModel, const pbrt::Point2i pixel, int32_t additionalSampleStep)
 	{
-		Float tmpModifiedError = minErrorLinModel.predError * invMinErrorThresholdFactor;
-
-		//printf("\n\n///////////////////////////////////////////////////////////////////////////////////////\n");
-		//printf("\n\minErrorLinModel.predError: %.15f", minErrorLinModel.predError);
-		//printf("\n\ntmpModifiedError: %f", tmpModifiedError);
-		//printf("\n///////////////////////////////////////////////////////////////////////////////////////\n\n");
-
+		
 		int64_t plannedSampleNumber = 0;
+		double threshHold = 0.0000000001;
+		int32_t receivedSamples = CurrentSampleNumber(pixel);
+		double predError = minErrorLinModel.predError;
 
-		while (tmpModifiedError > 1.0)
-		{
-			if (plannedSampleNumber == 0)
-			{
-				plannedSampleNumber += additionalSampleStep;
-				continue;
-			}
-			plannedSampleNumber *= additionalSampleStep;
-			tmpModifiedError /= 10.0;
+		/*printf("\n\n current pixel: %d, %d\n", pixel.x, pixel.y);
+		printf("\n error: %0.12f\n", predError);
+		printf("\n receivedSamples: %d\n", receivedSamples);*/
+
+		while (predError > threshHold)
+		{	
+			double reductionFactor = std::pow(static_cast<double>(receivedSamples), ((double)-4 / (double)(featureDim + 4)));
+			predError = predError * reductionFactor;
+			receivedSamples++;
+			plannedSampleNumber++;
+		/*	printf("\n reduction factor: %.12f\n", reductionFactor);
+			printf("\n error update: %.12f\n", predError);*/
 		}
+		/*printf("\n Planned Samples: %d\n", plannedSampleNumber);*/
+
+		//DEBUG
+		minSamplesSend = (plannedSampleNumber < minSamplesSend) ? plannedSampleNumber : minSamplesSend;
+		maxSamplesSend = (plannedSampleNumber > maxSamplesSend) ? plannedSampleNumber : maxSamplesSend;
 		return plannedSampleNumber;
 	}
 
@@ -374,7 +378,7 @@ namespace pbrt
 		return result;
 	}
 
-	LinearModel LPSamplingPlanner::computeLinearModelAndPredictionError(const LinearModel previousLinModel, const int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, const Point2i centerPixel, int featureDim)
+	LinearModel LPSamplingPlanner::computeLinearModelAndPredictionError(const LinearModel previousLinModel, const int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, const Point2i centerPixel)
 	{
 		LinearModel result;
 
