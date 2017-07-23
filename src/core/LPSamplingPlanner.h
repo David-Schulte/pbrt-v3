@@ -99,6 +99,7 @@ namespace pbrt
 		int64_t getPlannedSampleNumber(LinearModel minErrorLinModel, const pbrt::Point2i pixel, int32_t additionalSampleStep);
 		virtual void copyInitialRenderFilm(Film* film);
 		virtual Point2i computeMargin(Film* film);
+		void initForAdaptiveIterations(Film * film);
 	};
 }
 

@@ -18,40 +18,19 @@ namespace pbrt
 		if (firstIteration) //plannedSampleMap is initialized with initialRenderSamplesPerPixels in SamplingPlanner::CreateSampleMap -> we dont have to do anything here for the initial render pass
 			return;			//firstIteration is set to false in SamplingPlanner::StartNextIteration
 
-		//copy film after initial Render
+		//copy film after initial Render and initialize varaiables for adaptive iterations
 		if (initialRenderFilmReady == false)
 		{
-			printf("\n second render pass \n");
-			// TODO: Convert values from xyz to rgb. Most likely the whole conversion as in WriteImage of film.cpp needed.
-			copyInitialRenderFilm(film);
 			initialRenderFilmReady = true;
-
-			
-
-			//init temporary plannedSampleMap
-			Bounds2i sampleBounds = film->GetSampleBounds();
-			Vector2i sampleExtent = sampleBounds.Diagonal();
-			plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y, 0));
-			temp_plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y, 0));
-			coverageMask = std::vector<std::vector<vector_bool>>(sampleExtent.x, std::vector<vector_bool>(sampleExtent.y, vector_bool()));
-
-			//get center pixels
-			grid.margin = computeMargin(film);
-			//printf("margin: %d %d \n", grid.margin.x, grid.margin.y);
+			copyInitialRenderFilm(film);
+			initForAdaptiveIterations(film);
+			printf("\n initial Render finished\n");
 		}
 		itCounter++;
-		
-		//plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y, 0));
-
-		//int fillMapVal = maxPixelSamplesPerIteration; //TODO: HOW to actually get planned sample number?
-		//if (adaptiveSamplesCount > 0)
-		//	fillMapVal = adaptiveSamplesCount;
 
 		//all pixels covered --> use actual plannedSampleMap
 		if (numberCoveredPixels == film->fullResolution.x * film->fullResolution.y)
 		{
-			printf("\nminSamplesSend: %d\n", minSamplesSend);
-			printf("\nmaxSamplesSend: %d\n", maxSamplesSend);
 			Float averageSPP = 0;
 			for (int row = 0; row < temp_plannedSampleMap.size(); row++)
 			{
@@ -63,9 +42,6 @@ namespace pbrt
 					}
 					else 
 					{
-						//printf("\n\n temp_plannedSampleMap[%d][%d]: %d\n", row, column, temp_plannedSampleMap[row][column]);
-						//printf("coverageMask[%d][%d]: %d\n\n", row, column, coverageMask[row][column].coverageCounter);
-
 						temp_plannedSampleMap[row][column] /= coverageMask[row][column].coverageCounter;
 						averageSPP += Float(temp_plannedSampleMap[row][column]);
 					}
@@ -91,7 +67,6 @@ namespace pbrt
 					continue;
 				}
 				
-				//Add more samples to Area around the center pixels for test purposes
 				int64_t kOpt = grid.fixedWindowSize;
 
 				LinearModel minErrorLinModel;
@@ -100,8 +75,6 @@ namespace pbrt
 				{
 					std::vector<LinearModel> linModels;
 					linModels.clear();
-					//TODO: Compute linear model here and estimate error of model
-					//TODO (probably): Imlement k(r) reparametrization as in the paper. 
 					// Compute linear models.
 					for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
 					{
@@ -192,7 +165,8 @@ namespace pbrt
 		maxPixelSamplesPerIteration = samplesPerPixel;
 	}
 
-	Float clamp(Float n, Float lower, Float upper) {
+	Float clamp(Float n, Float lower, Float upper) 
+	{
 		return std::max(lower, std::min(n, upper));
 	}
 
@@ -235,6 +209,19 @@ namespace pbrt
 		int marginY = film->fullResolution.y % grid.granularity;
 	
 		return Point2i(marginX/2, marginY/2);
+	}
+
+	void LPSamplingPlanner::initForAdaptiveIterations(Film * film)
+	{
+		//init temporary plannedSampleMap
+		Bounds2i sampleBounds = film->GetSampleBounds();
+		Vector2i sampleExtent = sampleBounds.Diagonal();
+		plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y, 0));
+		temp_plannedSampleMap = std::vector<std::vector<int64_t>>(sampleExtent.x, std::vector<int64_t>(sampleExtent.y, 0));
+		coverageMask = std::vector<std::vector<vector_bool>>(sampleExtent.x, std::vector<vector_bool>(sampleExtent.y, vector_bool()));
+
+		//compute intial margin for horizontally and vertically centered filterWindows
+		grid.margin = computeMargin(film);
 	}
 
 	bool LPSamplingPlanner::StartNextIteration()
@@ -283,7 +270,6 @@ namespace pbrt
 			result(i, 0) = 1;
 		}
 
-
 		for (int featureIdx = 0; featureIdx < featureDim; featureIdx++)
 		{
 			for (int row = 0; row < adaptiveWindowSize; row++)
@@ -300,8 +286,6 @@ namespace pbrt
 		return result;
 	}
 
-	// Result will be a column/row (?) vector
-	// Change from XYZ to RGB later.
 	Eigen::VectorXd constructYc(int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel)
 	{
 		Eigen::VectorXd result(adaptiveWindowSize*adaptiveWindowSize,1);
@@ -309,8 +293,6 @@ namespace pbrt
 		{
 			for (int j = 0; j < adaptiveWindowSize; j++)
 			{
-				//if (i != j)
-				//{
 				int row = centerPixel.y - adaptiveWindowSize / 2 + i;
 				int column = centerPixel.x - adaptiveWindowSize / 2 + j;
 				result(i*adaptiveWindowSize + j) = (rawPixelData[column][row].rgb[0]
@@ -331,9 +313,6 @@ namespace pbrt
 		Eigen::MatrixXd X = constructXc(adaptiveWindowSize, featureDim);
 		Eigen::VectorXd Y = constructYc(adaptiveWindowSize, rawPixelData, centerPixel);
 
-		//std::cout << "\n\n X: \n" << X << std::endl << std::endl;
-		//std::cout << "\n\n Y: \n" << Y << std::endl << std::endl;
-
 		Eigen::MatrixXd A = X.transpose()*X;
 		Eigen::VectorXd B = X.transpose()*Y;
 
@@ -345,22 +324,13 @@ namespace pbrt
 		////if (LU_A.isInvertible() || adaptiveWindowSize <= 3)
 		if (A.fullPivLu().rank() == augmentedA.fullPivLu().rank())
 		{
-			//printf("\n\nCompute linear model!!!\n\n");
 			result.linModelCoeffs = LU_A.solve(B);
 
 			// Update prediction error of the linear model here.
 			updatePredictionErrorEstimate(result, previousLinModel, rawPixelData, X, Y);
-
-			//printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////");
-			////std::cout << "\n\n LinModelCoeffs result (matrix): \n" << result.linModelCoeffs << std::endl << std::endl;
-			/*printf("\nLinModelCoeffs result (matrix): [ %.12f , %.12f ]\n", result.linModelCoeffs(0, 0), result.linModelCoeffs(1, 0));
-			printf("Prediction error: %.50f\n\n", result.predError);
-			printf("Current adaptive window size: %d\n\n", adaptiveWindowSize);*/
-			//printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
 		}
 		else 
 		{
-			//printf("\n\nNo update, since Ax=b not (uniquely) solveable for size %d!**************************************************\n\n", adaptiveWindowSize);
 			result.linModelCoeffs = Eigen::VectorXd::Zero(X.cols(),1);
 			result.predError = 0.0;
 		}
@@ -373,7 +343,6 @@ namespace pbrt
 		return result;
 	}
 
-	// TODO: 1. Testing for correctness.
 	void LPSamplingPlanner::updatePredictionErrorEstimate(LinearModel& linModel, const LinearModel previousLinModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, const Eigen::MatrixXd Xc, const Eigen::MatrixXd Yc)
 	{
 		std::vector<Float> linModelErrors;
