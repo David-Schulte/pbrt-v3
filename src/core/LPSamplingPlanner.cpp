@@ -13,8 +13,6 @@ namespace pbrt
 
 	void LPSamplingPlanner::UpdateSamplingPlan(Film *film, const int64_t adaptiveSamplesCount)
 	{
-		static int itCounter = 0;
-
 		if (firstIteration) //plannedSampleMap is initialized with initialRenderSamplesPerPixels in SamplingPlanner::CreateSampleMap -> we dont have to do anything here for the initial render pass
 			return;			//firstIteration is set to false in SamplingPlanner::StartNextIteration
 
@@ -26,7 +24,6 @@ namespace pbrt
 			initForAdaptiveIterations(film);
 			printf("\n initial Render finished\n");
 		}
-		itCounter++;
 
 		//all pixels covered --> use actual plannedSampleMap
 		if (numberCoveredPixels == film->fullResolution.x * film->fullResolution.y)
@@ -56,32 +53,31 @@ namespace pbrt
 			return;
 		}
 
-		for (int32_t row = (grid.granularity / 2) + filmExtentResDiff/2 + grid.margin.x; row < plannedSampleMap.size() - filmExtentResDiff/2; row += grid.granularity)
+		
+		for (int32_t centerPixelX = (grid.granularity / 2) + filmExtentResDiff / 2 + grid.margin.x; centerPixelX < plannedSampleMap.size() - filmExtentResDiff / 2; centerPixelX += grid.granularity)
 		{
-			for (int32_t column = (grid.granularity / 2) + filmExtentResDiff/2 + grid.margin.y; column < plannedSampleMap[0].size()- filmExtentResDiff/2; column += grid.granularity)
+			for (int32_t centerPixelY = (grid.granularity / 2) + filmExtentResDiff / 2 + grid.margin.y; centerPixelY < plannedSampleMap[0].size() - filmExtentResDiff / 2; centerPixelY += grid.granularity)
 			{
-				//printf("Current center pixel: %d %d \n", row-2, column-2);
-				if (coverageMask[row][column].value) //center pixel is already covered
-				{
-					//printf(" Center pixel already covered.\n\n");
-					continue;
-				}
-				
+				LinearModel minErrorLinModel;
 				int64_t kOpt = grid.fixedWindowSize;
 
-				LinearModel minErrorLinModel;
+				if (coverageMask[centerPixelX][centerPixelY].value) //center pixel is already covered
+				{
+					continue;
+				}
+
 				//for pixels that are part of the image and the fixed window does not reach over the border
-				if (!(row - grid.fixedWindowSize / 2 < filmExtentResDiff/2 || row + grid.fixedWindowSize / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff/2 || column - grid.fixedWindowSize / 2 < filmExtentResDiff/2 || column + grid.fixedWindowSize / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff/2))
+				if (!(centerPixelX - grid.fixedWindowSize / 2 < filmExtentResDiff / 2 || centerPixelX + grid.fixedWindowSize / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || centerPixelY - grid.fixedWindowSize / 2 < filmExtentResDiff / 2 || centerPixelY + grid.fixedWindowSize / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2))
 				{
 					std::vector<LinearModel> linModels;
 					linModels.clear();
 					// Compute linear models.
 					for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
 					{
-						//LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(row - 2, column - 2));
+						//LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(centerPixelX - 2, centerPixelY - 2));
 						//linModels.push_back(linModel);
 						LinearModel prevModel = linModels.empty() ? LinearModel() : linModels.back();
-						Point2i centerPixel = Point2i(row - (filmExtentResDiff / 2), column - (filmExtentResDiff / 2));
+						Point2i centerPixel = Point2i(centerPixelX - (filmExtentResDiff / 2), centerPixelY - (filmExtentResDiff / 2));
 						LinearModel currentModel = computeLinearModelAndPredictionError(prevModel, adaptiveWindowSize, initialRenderFilm, centerPixel);
 						allCenterPixel.push_back(centerPixel);
 						linModels.push_back(currentModel);
@@ -90,22 +86,19 @@ namespace pbrt
 					minErrorLinModel = linModels[minErrorLinModelIdx];
 					kOpt = minErrorLinModel.windowSize;
 				}
-				for (int32_t x = row - kOpt / 2; x <= row + kOpt / 2; x++)
+				for (int32_t x = centerPixelX - kOpt / 2; x <= centerPixelX + kOpt / 2; x++)
 				{
-					for (int32_t y = column - kOpt / 2; y <= column + kOpt / 2; y++)
+					for (int32_t y = centerPixelY - kOpt / 2; y <= centerPixelY + kOpt / 2; y++)
 					{
-						//printf("\nCenter pixel: [%d,%d]\n", row, column);
-						//printf("Current pixel to render with adaptive samples: [%d,%d]\n\n", x, y);
-						//printf("Current pixel in kOpt window: % d %d \n .", x-2, y-2);
-						if (x < filmExtentResDiff/2 || x > plannedSampleMap.size() - 1 - filmExtentResDiff/2 || y < filmExtentResDiff/2 || y > plannedSampleMap[0].size() - 1 - filmExtentResDiff/2)
+						if (x < filmExtentResDiff / 2 || x > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || y < filmExtentResDiff / 2 || y > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2)
 						{
 							//printf("x or y outside of image \n");
 							continue; //ignore pixels that are not part of the real image
 						}
-							
+
 
 						//for pixels that are part of the image but the kOpt window reaches over the border -> add coverage but dont add additional samples
-						if (row - kOpt / 2 < filmExtentResDiff/2 || row + kOpt / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff/2 || column - kOpt / 2 < filmExtentResDiff/2 || column + kOpt / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff/2)
+						if (centerPixelX - kOpt / 2 < filmExtentResDiff / 2 || centerPixelX + kOpt / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || centerPixelY - kOpt / 2 < filmExtentResDiff / 2 || centerPixelY + kOpt / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2)
 						{
 							//printf("x or y inside image but kOpt window outside \n");
 							if (coverageMask[x][y].value)
@@ -119,16 +112,16 @@ namespace pbrt
 							//printf("xy now covered but did not get any samples \n");
 							continue;
 						}
-					
+
 
 						if (coverageMask[x][y].value == false)
 						{
-						//	printf("xy now covered and got samples \n");
+							//	printf("xy now covered and got samples \n");
 							numberCoveredPixels++;
 							coverageMask[x][y].value = true;
 							//printf("\n number covered pixels: %d \n", numberCoveredPixels);
 						}
-						temp_plannedSampleMap[x][y] += getPlannedSampleNumber(minErrorLinModel, pbrt::Point2i(x,y), 2);
+						temp_plannedSampleMap[x][y] += getPlannedSampleNumber(minErrorLinModel, pbrt::Point2i(x, y), 2);
 						coverageMask[x][y].coverageCounter++;
 					}
 				}
