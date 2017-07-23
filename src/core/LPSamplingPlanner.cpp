@@ -46,7 +46,7 @@ namespace pbrt
 					continue;
 				
 				//for pixels that are part of the image and the fixed window does not reach over the border
-				if (!(centerPixelX - grid.fixedWindowSize / 2 < filmExtentResDiff / 2 || centerPixelX + grid.fixedWindowSize / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || centerPixelY - grid.fixedWindowSize / 2 < filmExtentResDiff / 2 || centerPixelY + grid.fixedWindowSize / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2))
+				if( false == windowReachesOverBorder(pbrt::Point2i(centerPixelX, centerPixelY), grid.fixedWindowSize))
 				{
 					std::vector<LinearModel> linModels;
 					// Compute linear models.
@@ -69,15 +69,12 @@ namespace pbrt
 				{
 					for (int32_t y = centerPixelY - kOpt / 2; y <= centerPixelY + kOpt / 2; y++)
 					{
-						if (x < filmExtentResDiff / 2 || x > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || y < filmExtentResDiff / 2 || y > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2)
-						{
-							//printf("x or y outside of image \n");
+						if (!isPixelPartOfImage(pbrt::Point2i(x, y)))
 							continue; //ignore pixels that are not part of the real image
-						}
-
-
+					
 						//for pixels that are part of the image but the kOpt window reaches over the border -> add coverage but dont add additional samples
-						if (centerPixelX - kOpt / 2 < filmExtentResDiff / 2 || centerPixelX + kOpt / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || centerPixelY - kOpt / 2 < filmExtentResDiff / 2 || centerPixelY + kOpt / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2)
+						if(windowReachesOverBorder(pbrt::Point2i(centerPixelX, centerPixelY), kOpt))
+						//if (centerPixelX - kOpt / 2 < filmExtentResDiff / 2 || centerPixelX + kOpt / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || centerPixelY - kOpt / 2 < filmExtentResDiff / 2 || centerPixelY + kOpt / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2)
 						{
 							//printf("x or y inside image but kOpt window outside \n");
 							if (coverageMask[x][y].value)
@@ -221,6 +218,19 @@ namespace pbrt
 		}
 		averageSPP /= Float(film->fullResolution.x * film->fullResolution.y);
 		printf("\n Average samples per pixel (averageSPP): %f\n", averageSPP);
+	}
+
+	bool LPSamplingPlanner::isPixelPartOfImage(pbrt::Point2i pixel)
+	{
+		return !(pixel.x < filmExtentResDiff / 2 || pixel.x > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || pixel.y < filmExtentResDiff / 2 || pixel.y > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2);
+	}
+
+	bool LPSamplingPlanner::windowReachesOverBorder(pbrt::Point2i centerPixel, int32_t windowSize)
+	{
+		pbrt::Point2i leftUpperCorner = pbrt::Point2i(centerPixel.x - windowSize / 2, centerPixel.y - windowSize / 2);
+		pbrt::Point2i rightLowerCorner = pbrt::Point2i(centerPixel.x + windowSize / 2, centerPixel.y + windowSize / 2);
+
+		return (!isPixelPartOfImage(leftUpperCorner) || !isPixelPartOfImage(rightLowerCorner));
 	}
 
 	bool LPSamplingPlanner::StartNextIteration()

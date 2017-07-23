@@ -102,6 +102,8 @@ namespace pbrt
 		void initForAdaptiveIterations(Film * film);
 		bool allPixelsCoveredByAtLeastOneLinearModel(Film* film);
 		void averagePlannedSampleNumber(Film* film);
+		bool isPixelPartOfImage(pbrt::Point2i pixel);
+		bool windowReachesOverBorder(pbrt::Point2i centerPixel, int32_t windowSize);
 	};
 }
 
