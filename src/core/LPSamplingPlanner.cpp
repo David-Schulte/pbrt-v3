@@ -15,20 +15,6 @@ namespace pbrt
 	{
 		static int itCounter = 0;
 
-		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		// DEBUG!
-		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-		if (firstIteration)
-		{
-			//testMatrixInv();
-			//testLUFactorization();
-		//	predictionErrorEstimateTest();
-			//printf("\ninputFilm size: [%d, %d]\n", film->fullResolution.x, film->fullResolution.y);
-			//printf("\nCoverageMask size: [%d, %d]\n", coverageMask[0].size(), coverageMask.size());
-			//printf("\nSampleMap size: [%d, %d]\n", plannedSampleMap[0].size(), plannedSampleMap.size());
-		}
-		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 		if (firstIteration) //plannedSampleMap is initialized with initialRenderSamplesPerPixels in SamplingPlanner::CreateSampleMap -> we dont have to do anything here for the initial render pass
 			return;			//firstIteration is set to false in SamplingPlanner::StartNextIteration
 
@@ -40,7 +26,7 @@ namespace pbrt
 			copyInitialRenderFilm(film);
 			initialRenderFilmReady = true;
 
-			//printf("\ninitialRenderFilm size: [%d, %d]\n", initialRenderFilm[0].size(), initialRenderFilm.size());
+			
 
 			//init temporary plannedSampleMap
 			Bounds2i sampleBounds = film->GetSampleBounds();
@@ -224,18 +210,8 @@ namespace pbrt
 		{
 			for (int column = 0; column < film->fullResolution.y; column++)
 			{
-				// TODO: Normalize rgb values with pixel filterWeightSum (see WriteImage at film.cpp).
-				initialRenderFilm[row][column] = rawPixelData(film->GetPixel(Point2i(row, column)).xyz);
-				//DEBUG ONLY
-				//Float randomValues[3] = { rand() % 256, rand() % 256, rand() % 256 };
-				//initialRenderFilm[row][column] = rawPixelData(randomValues);
-				//
 
-
-
-				//std::unique_ptr<Float[]> rgb(new Float[3]);
-				XYZToRGB(initialRenderFilm[row][column].xyz, &rgb[0], true);
-				//printf("\n\nInitial RGB values (before normalization): [ %f , %f , %f ]\n\n", rgb[0], rgb[1], rgb[2]);
+				XYZToRGB(film->GetPixel(Point2i(row, column)).xyz, &rgb[0], true);
 				// Normalize pixel with weight sum
 				Float filterWeightSum = film->GetPixel(Point2i(row, column)).filterWeightSum;
 				if (filterWeightSum != 0) {
@@ -248,41 +224,8 @@ namespace pbrt
 				initialRenderFilm[row][column].rgb[0] = rgb[0];
 				initialRenderFilm[row][column].rgb[1] = rgb[1];
 				initialRenderFilm[row][column].rgb[2] = rgb[0];
-
-				//printf("\n\nInitial RGB values (after normalization): [ %f , %f , %f ]\n\n", rgb[0], rgb[1], rgb[2]);
-				//
-				//if (rgb[0] > maxColorChannelRGBVal)
-				//{ 
-				//	maxColorChannelRGBVal = rgb[0];
-				//}
-				//if (rgb[1] > maxColorChannelRGBVal)
-				//{
-				//	maxColorChannelRGBVal = rgb[1];
-				//}
-				//if (rgb[2] > maxColorChannelRGBVal)
-				//{
-				//	maxColorChannelRGBVal = rgb[2];
-				//}
-
-				//if (initialRenderFilm[row][column].xyz[0] > maxColorChannelXYZVal)
-				//{
-				//	maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[0];
-				//}
-				//if (initialRenderFilm[row][column].xyz[1] > maxColorChannelXYZVal)
-				//{
-				//	maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[1];
-				//}
-				//if (initialRenderFilm[row][column].xyz[2] > maxColorChannelXYZVal)
-				//{
-				//	maxColorChannelXYZVal = initialRenderFilm[row][column].xyz[2];
-				//}
-				//printf("\n\nInitial RGB values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].rgb[0], initialRenderFilm[row][column].rgb[1], initialRenderFilm[row][column].rgb[2]);
-				//printf("\n\nInitial XYZ values: [ %f , %f , %f ]\n\n", initialRenderFilm[row][column].xyz[0], initialRenderFilm[row][column].xyz[1], initialRenderFilm[row][column].xyz[2]);
-				
 			}
 		}
-		//printf("\n\nMaximum color channel RGB value: %f\n\n", maxColorChannelRGBVal);
-		//printf("\nMaximum color channel XYZ value: %f\n\n", maxColorChannelXYZVal);
 		delete[] rgb;
 	}
 
