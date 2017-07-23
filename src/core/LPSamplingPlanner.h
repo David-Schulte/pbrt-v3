@@ -104,6 +104,7 @@ namespace pbrt
 		void averagePlannedSampleNumber(Film* film);
 		bool isPixelPartOfImage(pbrt::Point2i pixel);
 		bool windowReachesOverBorder(pbrt::Point2i centerPixel, int32_t windowSize);
+		std::vector<LinearModel> computeAllLinearModels(int32_t centerPixelX, int32_t centerPixelY);
 	};
 }
 

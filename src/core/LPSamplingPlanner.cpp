@@ -48,20 +48,8 @@ namespace pbrt
 				//for pixels that are part of the image and the fixed window does not reach over the border
 				if( false == windowReachesOverBorder(pbrt::Point2i(centerPixelX, centerPixelY), grid.fixedWindowSize))
 				{
-					std::vector<LinearModel> linModels;
-					// Compute linear models.
-					for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
-					{
-						//LinearModel linModel = computeLinearModelAndPredictionError(adaptiveWindowSize, initialRenderFilm, Point2i(centerPixelX - 2, centerPixelY - 2));
-						//linModels.push_back(linModel);
-						LinearModel prevModel = linModels.empty() ? LinearModel() : linModels.back();
-						Point2i centerPixel = Point2i(centerPixelX - (filmExtentResDiff / 2), centerPixelY - (filmExtentResDiff / 2));
-						LinearModel currentModel = computeLinearModelAndPredictionError(prevModel, adaptiveWindowSize, initialRenderFilm, centerPixel);
-						allCenterPixel.push_back(centerPixel);
-						linModels.push_back(currentModel);
-					}
-					int minErrorLinModelIdx = findMinErrorLinModelIdx(linModels);
-					minErrorLinModel = linModels[minErrorLinModelIdx];
+					std::vector<LinearModel> linModels = computeAllLinearModels(centerPixelX, centerPixelY);
+					minErrorLinModel = linModels[findMinErrorLinModelIdx(linModels)];
 					kOpt = minErrorLinModel.windowSize;
 				}
 
@@ -74,7 +62,6 @@ namespace pbrt
 					
 						//for pixels that are part of the image but the kOpt window reaches over the border -> add coverage but dont add additional samples
 						if(windowReachesOverBorder(pbrt::Point2i(centerPixelX, centerPixelY), kOpt))
-						//if (centerPixelX - kOpt / 2 < filmExtentResDiff / 2 || centerPixelX + kOpt / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || centerPixelY - kOpt / 2 < filmExtentResDiff / 2 || centerPixelY + kOpt / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2)
 						{
 							//printf("x or y inside image but kOpt window outside \n");
 							if (coverageMask[x][y].value)
@@ -104,28 +91,6 @@ namespace pbrt
 			}
 		}
 		grid.refineGrid();
-		
-			//for (int row = 0; row < plannedSampleMap.size(); row++)
-			//{
-			//	for (int column = 0; column < plannedSampleMap[0].size(); column++)
-			//	{
-			//		/*Dont add planned samples if:
-			//		1: The center pixel is already covered
-			//		2. The pixel is outside of the image resolutions (but inside the extent)
-			//		*/
-			//		if (coverageMask.at(row).at(column).value || row < 2 || row > film->fullResolution.x || column < 2 || column > film->fullResolution.y)
-			//		{
-			//			plannedSampleMap[row][column] = 0;
-			//			continue;
-			//		}
-			//		
-			//		const Float* xyz = initialRenderFilm->GetPixel(Point2i(row-2, column-2)).xyz;
-
-			//		plannedSampleMap[row][column] = fillMapVal;
-			//	}
-			//}
-		
-
 	}
 
 	void LPSamplingPlanner::CreateSamplingPlan(int samplesPerPixel, Film * film)
@@ -231,6 +196,21 @@ namespace pbrt
 		pbrt::Point2i rightLowerCorner = pbrt::Point2i(centerPixel.x + windowSize / 2, centerPixel.y + windowSize / 2);
 
 		return (!isPixelPartOfImage(leftUpperCorner) || !isPixelPartOfImage(rightLowerCorner));
+	}
+
+	std::vector<LinearModel> LPSamplingPlanner::computeAllLinearModels(int32_t centerPixelX, int32_t centerPixelY)
+	{
+		std::vector<LinearModel> linModels;
+		// Compute linear models.
+		for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
+		{
+			LinearModel prevModel = linModels.empty() ? LinearModel() : linModels.back();
+			Point2i centerPixel = Point2i(centerPixelX - (filmExtentResDiff / 2), centerPixelY - (filmExtentResDiff / 2));
+			LinearModel currentModel = computeLinearModelAndPredictionError(prevModel, adaptiveWindowSize, initialRenderFilm, centerPixel);
+			allCenterPixel.push_back(centerPixel);
+			linModels.push_back(currentModel);
+		}
+		return linModels;
 	}
 
 	bool LPSamplingPlanner::StartNextIteration()
