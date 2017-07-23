@@ -26,34 +26,15 @@ namespace pbrt
 		}
 
 		//all pixels covered --> use actual plannedSampleMap
-		if (numberCoveredPixels == film->fullResolution.x * film->fullResolution.y)
+		if (allPixelsCoveredByAtLeastOneLinearModel(film))
 		{
-			Float averageSPP = 0;
-			for (int row = 0; row < temp_plannedSampleMap.size(); row++)
-			{
-				for (int column = 0; column < temp_plannedSampleMap[0].size(); column++)
-				{
-					if (coverageMask[row][column].coverageCounter == 0)
-					{
-						temp_plannedSampleMap[row][column] = 0;
-					}
-					else 
-					{
-						temp_plannedSampleMap[row][column] /= coverageMask[row][column].coverageCounter;
-						averageSPP += Float(temp_plannedSampleMap[row][column]);
-					}
-				}
-			}
-			averageSPP /= Float(film->fullResolution.x * film->fullResolution.y);
-			printf("\n Average samples per pixel (averageSPP): %f\n", averageSPP);
-
 			printf("\n all pixels covered \n");
+			averagePlannedSampleNumber(film);
 			plannedSampleMap = temp_plannedSampleMap;
 			finalRender = true;
 			return;
 		}
 
-		
 		for (int32_t centerPixelX = (grid.granularity / 2) + filmExtentResDiff / 2 + grid.margin.x; centerPixelX < plannedSampleMap.size() - filmExtentResDiff / 2; centerPixelX += grid.granularity)
 		{
 			for (int32_t centerPixelY = (grid.granularity / 2) + filmExtentResDiff / 2 + grid.margin.y; centerPixelY < plannedSampleMap[0].size() - filmExtentResDiff / 2; centerPixelY += grid.granularity)
@@ -62,15 +43,12 @@ namespace pbrt
 				int64_t kOpt = grid.fixedWindowSize;
 
 				if (coverageMask[centerPixelX][centerPixelY].value) //center pixel is already covered
-				{
 					continue;
-				}
-
+				
 				//for pixels that are part of the image and the fixed window does not reach over the border
 				if (!(centerPixelX - grid.fixedWindowSize / 2 < filmExtentResDiff / 2 || centerPixelX + grid.fixedWindowSize / 2 > plannedSampleMap.size() - 1 - filmExtentResDiff / 2 || centerPixelY - grid.fixedWindowSize / 2 < filmExtentResDiff / 2 || centerPixelY + grid.fixedWindowSize / 2 > plannedSampleMap[0].size() - 1 - filmExtentResDiff / 2))
 				{
 					std::vector<LinearModel> linModels;
-					linModels.clear();
 					// Compute linear models.
 					for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
 					{
@@ -86,6 +64,7 @@ namespace pbrt
 					minErrorLinModel = linModels[minErrorLinModelIdx];
 					kOpt = minErrorLinModel.windowSize;
 				}
+
 				for (int32_t x = centerPixelX - kOpt / 2; x <= centerPixelX + kOpt / 2; x++)
 				{
 					for (int32_t y = centerPixelY - kOpt / 2; y <= centerPixelY + kOpt / 2; y++)
@@ -215,6 +194,33 @@ namespace pbrt
 
 		//compute intial margin for horizontally and vertically centered filterWindows
 		grid.margin = computeMargin(film);
+	}
+
+	bool LPSamplingPlanner::allPixelsCoveredByAtLeastOneLinearModel(Film * film)
+	{
+		return (numberCoveredPixels == film->fullResolution.x * film->fullResolution.y);
+	}
+
+	void LPSamplingPlanner::averagePlannedSampleNumber(Film* film)
+	{
+		Float averageSPP = 0;
+		for (int row = 0; row < temp_plannedSampleMap.size(); row++)
+		{
+			for (int column = 0; column < temp_plannedSampleMap[0].size(); column++)
+			{
+				if (coverageMask[row][column].coverageCounter == 0)
+				{
+					temp_plannedSampleMap[row][column] = 0;
+				}
+				else
+				{
+					temp_plannedSampleMap[row][column] /= coverageMask[row][column].coverageCounter;
+					averageSPP += Float(temp_plannedSampleMap[row][column]);
+				}
+			}
+		}
+		averageSPP /= Float(film->fullResolution.x * film->fullResolution.y);
+		printf("\n Average samples per pixel (averageSPP): %f\n", averageSPP);
 	}
 
 	bool LPSamplingPlanner::StartNextIteration()

@@ -100,6 +100,8 @@ namespace pbrt
 		virtual void copyInitialRenderFilm(Film* film);
 		virtual Point2i computeMargin(Film* film);
 		void initForAdaptiveIterations(Film * film);
+		bool allPixelsCoveredByAtLeastOneLinearModel(Film* film);
+		void averagePlannedSampleNumber(Film* film);
 	};
 }
 
