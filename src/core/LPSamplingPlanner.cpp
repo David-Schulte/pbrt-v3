@@ -78,7 +78,7 @@ namespace pbrt
 							coverageMask[x][y].value = true;
 						}
 
-						temp_plannedSampleMap[x][y] += getPlannedSampleNumber(minErrorLinModel, pbrt::Point2i(x, y), 2);
+						temp_plannedSampleMap[x][y] += getPlannedSampleNumber(minErrorLinModel, pbrt::Point2i(x, y), 1);
 						coverageMask[x][y].coverageCounter++; 
 						initialRenderFilm[x - filmExtentResDiff/2][y - filmExtentResDiff/2].predError += minErrorLinModel.predError;
 					}
@@ -234,14 +234,15 @@ namespace pbrt
 		printf("\n error: %0.12f\n", predError);
 		printf("\n receivedSamples: %d\n", receivedSamples);*/
 
+		//Float fallOffFactor = predError/ minErrorLinModel.predError;
+
 		while (predError > threshHold)
 		{	
 			double reductionFactor = std::pow(static_cast<double>(receivedSamples), ((double)-4 / (double)(featureDim + 4)));
 			predError = predError * reductionFactor;
 			receivedSamples++;
-			plannedSampleNumber++;
-		/*	printf("\n reduction factor: %.12f\n", reductionFactor);
-			printf("\n error update: %.12f\n", predError);*/
+
+			plannedSampleNumber+= additionalSampleStep;
 		}
 		/*printf("\n Planned Samples: %d\n", plannedSampleNumber);*/
 
