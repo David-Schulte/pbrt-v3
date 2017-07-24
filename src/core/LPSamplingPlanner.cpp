@@ -99,6 +99,7 @@ namespace pbrt
 						}
 						temp_plannedSampleMap[x][y] += getPlannedSampleNumber(minErrorLinModel, pbrt::Point2i(x, y), 2);
 						coverageMask[x][y].coverageCounter++;
+						initialRenderFilm[x - filmExtentResDiff/2][y - filmExtentResDiff/2].predError += minErrorLinModel.predError;
 					}
 				}
 			}
@@ -159,9 +160,13 @@ namespace pbrt
 				Float filterWeightSum = film->GetPixel(Point2i(row, column)).filterWeightSum;
 				if (filterWeightSum != 0) {
 					Float invWt = (Float)1 / filterWeightSum;
-					rgb[0] = std::max((Float)0, rgb[0] * invWt);
-					rgb[1] = std::max((Float)0, rgb[1] * invWt);
-					rgb[2] = std::max((Float)0, rgb[2] * invWt);
+					//rgb[0] = std::max((Float)0, rgb[0] * invWt);
+					//rgb[1] = std::max((Float)0, rgb[1] * invWt);
+					//rgb[2] = std::max((Float)0, rgb[2] * invWt);
+
+					rgb[0] = std::min((Float)1, std::max((Float)0, rgb[0] * invWt));
+					rgb[1] = std::min((Float)1, std::max((Float)0, rgb[1] * invWt));
+					rgb[2] = std::min((Float)1, std::max((Float)0, rgb[2] * invWt));
 				}
 
 				initialRenderFilm[row][column].rgb[0] = rgb[0];
@@ -213,6 +218,10 @@ namespace pbrt
 				{
 					temp_plannedSampleMap[row][column] /= coverageMask[row][column].coverageCounter;
 					averageSPP += Float(temp_plannedSampleMap[row][column]);
+					if (row >= filmExtentResDiff && column >= filmExtentResDiff)
+					{
+						initialRenderFilm[row-filmExtentResDiff/2][column-filmExtentResDiff/2].predError /= coverageMask[row][column].coverageCounter;
+					}
 				}
 			}
 		}

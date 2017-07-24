@@ -35,6 +35,7 @@ namespace pbrt
 		bool firstIteration = true;
 
 		std::vector<Point2i> getAllCenterPixel() { return allCenterPixel; }
+		std::vector<std::vector<int64_t>> getPlannedSampleMap() { return plannedSampleMap; }
 
     protected:
 

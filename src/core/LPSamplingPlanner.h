@@ -34,6 +34,9 @@ namespace pbrt
 		rawPixelData() { xyz[0] = 0; xyz[1] = 0; xyz[2] = 0; }
 		Float xyz[3] = { 0,0,0 };
 		Float rgb[3] = { 0,0,0 };
+
+		// For visualization only!
+		Float predError = 0.0;
 	};
 
 	struct LinearModel
@@ -70,7 +73,8 @@ namespace pbrt
 
 		bool initialRenderFilmReady;
 
-		//const int64_t filmExtentResDiff = 0;
+		std::vector<std::vector<rawPixelData>> getInitialRenderFilm() { return initialRenderFilm; }
+		std::vector<std::vector<vector_bool>> getCoverageMask() { return coverageMask; }
 
 		// For test only!
 		void predictionErrorEstimateTest();
