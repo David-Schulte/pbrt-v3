@@ -58,7 +58,6 @@ namespace pbrt
 	public:
 		LPSamplingPlanner(int64_t resolutionX, int64_t resolutionY) :
 			grid(AdaptiveGrid()),
-			//coverageMask(std::vector<std::vector<vector_bool>>(resolutionX + filmExtentResDiff, std::vector<vector_bool>(resolutionY + filmExtentResDiff, vector_bool()))),
 			initialRenderFilmReady(false),
 			finalRender(false),
 			numberCoveredPixels(0){ }
@@ -69,8 +68,6 @@ namespace pbrt
 		virtual bool StartNextIteration();
 
 		bool initialRenderFilmReady;
-
-		//const int64_t filmExtentResDiff = 0;
 
 		// For test only!
 		void predictionErrorEstimateTest();
@@ -85,7 +82,6 @@ namespace pbrt
 		std::vector<std::vector<vector_bool>> coverageMask;
 		std::vector<std::vector<rawPixelData>> initialRenderFilm;
 		std::vector<std::vector<int64_t>> temp_plannedSampleMap;
-		//bool initialRenderFilmReady;
 		bool finalRender;
 		int64_t numberCoveredPixels;
 		int32_t featureDim = 2;
