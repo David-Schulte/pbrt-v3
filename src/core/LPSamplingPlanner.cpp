@@ -24,6 +24,9 @@ namespace pbrt
 		//all pixels covered --> use actual plannedSampleMap
 		if (allPixelsCoveredByAtLeastOneLinearModel(film))
 		{
+			printf("\n\n MinMaxSamples send %d, %d \n", minSamplesSend, maxSamplesSend);
+			printf("\n\n MinMaxError send %.12f, %.12f \n", minError, maxError);
+
 			printf("\n all pixels covered \n");
 			averagePlannedSampleNumber(film);
 			plannedSampleMap = temp_plannedSampleMap;
@@ -44,12 +47,10 @@ namespace pbrt
 				
 				//if a windows of size fixedWindowSize x fixedWindowSize reaches over border, we cannot compute all linear models.
 				// --> compute linear models only if the window does not reach over image border
-				if( false == windowReachesOverBorder(pbrt::Point2i(centerPixelX, centerPixelY), grid.fixedWindowSize))
-				{
 					std::vector<LinearModel> linModels = computeAllLinearModels(centerPixelX, centerPixelY);
-					minErrorLinModel = linModels[findMinErrorLinModelIdx(linModels)];
-					kOpt = minErrorLinModel.windowSize;
-				}
+					minErrorLinModel = (linModels.size() > 0) ? linModels[findMinErrorLinModelIdx(linModels)] : LinearModel();
+					kOpt = (linModels.size() > 0) ? minErrorLinModel.windowSize : grid.fixedWindowSize;
+				
 
 				//iterate over all pixels within a prediction window of size kOpt x kOpt
 				for (int32_t x = centerPixelX - kOpt / 2; x <= centerPixelX + kOpt / 2; x++)
@@ -205,8 +206,13 @@ namespace pbrt
 	{
 		std::vector<LinearModel> linModels;
 		// Compute linear models.
-		for (int adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
+		for (int32_t adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
 		{
+			
+			if (windowReachesOverBorder(pbrt::Point2i(centerPixelX, centerPixelY), adaptiveWindowSize))
+			{
+				break;
+			}
 			LinearModel prevModel = linModels.empty() ? LinearModel() : linModels.back();
 			Point2i centerPixel = Point2i(centerPixelX - (filmExtentResDiff / 2), centerPixelY - (filmExtentResDiff / 2));
 			LinearModel currentModel = computeLinearModelAndPredictionError(prevModel, adaptiveWindowSize, initialRenderFilm, centerPixel);
@@ -214,6 +220,7 @@ namespace pbrt
 			linModels.push_back(currentModel);
 		}
 		return linModels;
+		
 	}
 
 	bool LPSamplingPlanner::StartNextIteration()
@@ -248,6 +255,9 @@ namespace pbrt
 		//DEBUG
 		minSamplesSend = (plannedSampleNumber < minSamplesSend) ? plannedSampleNumber : minSamplesSend;
 		maxSamplesSend = (plannedSampleNumber > maxSamplesSend) ? plannedSampleNumber : maxSamplesSend;
+
+		minError = (minErrorLinModel.predError < minError) ? minErrorLinModel.predError : minError;
+		maxError = (minErrorLinModel.predError > maxError) ? minErrorLinModel.predError : maxError;
 		return plannedSampleNumber;
 	}
 
