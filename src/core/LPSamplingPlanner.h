@@ -93,6 +93,8 @@ namespace pbrt
 		int32_t featureDim = 2;
 		int32_t minSamplesSend = 0;//DEBUG
 		int32_t maxSamplesSend = 0;//DEBUG
+		double maxError = 0;
+		double minError = 0;
 
 		LinearModel computeLinearModelAndPredictionError(const LinearModel previousLinModel, int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
 		void updatePredictionErrorEstimate(LinearModel &linModel, const LinearModel previousLinModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd Xc, Eigen::MatrixXd Yc);

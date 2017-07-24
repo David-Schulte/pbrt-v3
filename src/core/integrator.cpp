@@ -265,6 +265,7 @@ void SamplerIntegrator::Render(const Scene &scene)
 		sampler->UpdateCurrentSampleNumberMap();
     } while (sampler->StartNextIteration());
 
+	//TODO: average 5 highest values for the max value
 	/////////////////////////////////////////////////////////////////////////////////////////
 	Float *visualizationAllCenterPixelRGB = new Float[sampleExtent.x*sampleExtent.y*3];
 
