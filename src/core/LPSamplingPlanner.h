@@ -61,7 +61,6 @@ namespace pbrt
 	public:
 		LPSamplingPlanner(int64_t resolutionX, int64_t resolutionY) :
 			grid(AdaptiveGrid()),
-			//coverageMask(std::vector<std::vector<vector_bool>>(resolutionX + filmExtentResDiff, std::vector<vector_bool>(resolutionY + filmExtentResDiff, vector_bool()))),
 			initialRenderFilmReady(false),
 			finalRender(false),
 			numberCoveredPixels(0){ }
@@ -89,7 +88,6 @@ namespace pbrt
 		std::vector<std::vector<vector_bool>> coverageMask;
 		std::vector<std::vector<rawPixelData>> initialRenderFilm;
 		std::vector<std::vector<int64_t>> temp_plannedSampleMap;
-		//bool initialRenderFilmReady;
 		bool finalRender;
 		int64_t numberCoveredPixels;
 		int32_t featureDim = 2;
@@ -108,6 +106,7 @@ namespace pbrt
 		void averagePlannedSampleNumber(Film* film);
 		bool isPixelPartOfImage(pbrt::Point2i pixel);
 		bool windowReachesOverBorder(pbrt::Point2i centerPixel, int32_t windowSize);
+		std::vector<LinearModel> computeAllLinearModels(int32_t centerPixelX, int32_t centerPixelY);
 	};
 }
 
