@@ -30,7 +30,15 @@ namespace pbrt
 			printf("\n all pixels covered \n");
 			averagePlannedSampleNumber(film);
 			plannedSampleMap = temp_plannedSampleMap;
-			finalRender = true;
+			
+			currentLevelOfAdaptation++;
+			if(currentLevelOfAdaptation == maxLevelOfAdaptation)
+				finalRender = true; //used in LPSamplingPlanner::StartNextIteration to determine if this is the final rendering before writing the image to a file 
+			else
+			{
+				initialRenderFilmReady = false; //reset to copy film anew in next adaptation level
+				printf("\n adaptive level %d finished\n", currentLevelOfAdaptation);
+			}
 			return;
 		}
 
@@ -147,6 +155,11 @@ namespace pbrt
 
 	void LPSamplingPlanner::initForAdaptiveIterations(Film * film)
 	{
+
+		//init variables
+		numberCoveredPixels = 0;
+		grid = AdaptiveGrid();
+
 		//init all maps
 		Bounds2i sampleBounds = film->GetSampleBounds();
 		Vector2i sampleExtent = sampleBounds.Diagonal();
@@ -410,9 +423,9 @@ namespace pbrt
 			}
 		}
 
-		printf("\n//////////////////////////////////////////////////////////////////////////////\n");
+		/*printf("\n//////////////////////////////////////////////////////////////////////////////\n");
 		printf("====Min error linear model [window size , prediction error , [center.x , center.y]]: [%d , %f , [%d , %d] ]\n", linModels[minLinModelErrorIdx].windowSize, linModels[minLinModelErrorIdx].predError, linModels[minLinModelErrorIdx].center.x, linModels[minLinModelErrorIdx].center.y);
-		printf("//////////////////////////////////////////////////////////////////////////////\n");
+		printf("//////////////////////////////////////////////////////////////////////////////\n");*/
 
 		return minLinModelErrorIdx;
 	}
