@@ -1,6 +1,7 @@
 #pragma once
 
 #include "LPSamplingPlanner.h"
+#include "imageio.h"
 #include "film.h"
 #include <array>
 #include <math.h>
@@ -32,8 +33,12 @@ namespace pbrt
 			plannedSampleMap = temp_plannedSampleMap;
 			
 			currentLevelOfAdaptation++;
-			if(currentLevelOfAdaptation == maxLevelOfAdaptation)
+			if (currentLevelOfAdaptation == maxLevelOfAdaptation)
+			{
+				pbrt::Bounds2i sampleBounds = film->GetSampleBounds();
+				outPutVisualizationImages(film->filename, sampleBounds, film->fullResolution);
 				finalRender = true; //used in LPSamplingPlanner::StartNextIteration to determine if this is the final rendering before writing the image to a file 
+			}
 			else
 			{
 				initialRenderFilmReady = false; //reset to copy film anew in next adaptation level
@@ -428,6 +433,192 @@ namespace pbrt
 		printf("//////////////////////////////////////////////////////////////////////////////\n");*/
 
 		return minLinModelErrorIdx;
+	}
+
+	void writeVisualizationToImage(std::function<void(Float* arrayToFill)> fillRGBFunc, const std::string visualizationName, const std::string fileName, Bounds2i sampleBounds, Point2i fullResolution, Float initValR, Float initValG, Float initValB)
+	{
+		Vector2<int> sampleExtent = sampleBounds.Diagonal();
+
+		Float *visualizationImageRGB = new Float[sampleExtent.x*sampleExtent.y * 3];
+
+		// Initialize all values
+		for (int row = 0; row < sampleExtent.x; row++)
+		{
+			for (int column = 0; column < sampleExtent.y; column++)
+			{
+				visualizationImageRGB[3 * (column * sampleExtent.x + row) + 0] = initValR;
+				visualizationImageRGB[3 * (column * sampleExtent.x + row) + 1] = initValG;
+				visualizationImageRGB[3 * (column * sampleExtent.x + row) + 2] = initValB;
+			}
+		}
+
+		fillRGBFunc(visualizationImageRGB);
+
+		std::string name = fileName;
+		name = visualizationName + name;
+
+		WriteImage(name, &visualizationImageRGB[0], sampleBounds, fullResolution);
+
+		delete[] visualizationImageRGB;
+	}
+
+	int numberOfNMaxVal = 75;
+	Float scaleFactorErrorMap = 7.0;
+	Float scaleFactorSampleMap = 1.05;
+
+	void LPSamplingPlanner::outPutVisualizationImages(const std::string fileName, Bounds2i sampleBounds, Point2i fullResolution)
+	{
+		/////////////////////////////////////////////////////////////////////////////////////////
+		// Visualize all centerPixel
+		Vector2i sampleExtent = sampleBounds.Diagonal();
+
+		writeVisualizationToImage([&](Float* arrayToFill)
+		{
+			for (int allCenterPixelIdx = 0; allCenterPixelIdx < allCenterPixel.size(); allCenterPixelIdx++)
+			{
+				int column = allCenterPixel[allCenterPixelIdx].y;
+				int row = allCenterPixel[allCenterPixelIdx].x;
+				arrayToFill[3 * (column * sampleExtent.x + row) + 0] = 1.0;
+				arrayToFill[3 * (column * sampleExtent.x + row) + 1] = 0.0;
+				arrayToFill[3 * (column * sampleExtent.x + row) + 2] = 0.0;
+			}
+		},
+		"AllCenterPixel_", fileName, sampleBounds, fullResolution, 1.0, 1.0, 1.0);
+
+		/////////////////////////////////////////////////////////////////////////////////////////
+		// Visualize sample map
+
+		writeVisualizationToImage([&](Float* arrayToFill)
+		{
+			int64_t sampleMapMaxVal = 0;
+			for (int row = 0; row < sampleExtent.x; row++)
+			{
+				for (int column = 0; column < sampleExtent.y; column++)
+				{
+					if (sampleMapMaxVal < plannedSampleMap[row][column])
+					{
+						sampleMapMaxVal = plannedSampleMap[row][column];
+					}
+				}
+			}
+
+			for (int row = 0; row < sampleExtent.x; row++)
+			{
+				for (int column = 0; column < sampleExtent.y; column++)
+				{
+					arrayToFill[3 * (column * sampleExtent.x + row) + 0] = 1.0;
+					arrayToFill[3 * (column * sampleExtent.x + row) + 1] = (1.0 - std::min((Float)1.0, (Float)plannedSampleMap[row][column] / (Float)sampleMapMaxVal * scaleFactorSampleMap));
+					arrayToFill[3 * (column * sampleExtent.x + row) + 2] = (1.0 - std::min((Float)1.0, (Float)plannedSampleMap[row][column] / (Float)sampleMapMaxVal * scaleFactorSampleMap));
+				}
+			}
+		},
+		"SampleMap_", fileName, sampleBounds, fullResolution, 1.0, 1.0, 1.0);
+
+		/////////////////////////////////////////////////////////////////////////////////////////
+		// Visualize estimated error (color ramp: blue to red)
+
+		writeVisualizationToImage([&](Float* arrayToFill)
+		{
+			int resX = fullResolution.x;
+			int resY = fullResolution.y;
+
+				Float errorMapMaxVal = 0;
+			for (int row = 0; row < resX; row++)
+			{
+				for (int column = 0; column < resY; column++)
+				{
+					if (errorMapMaxVal < initialRenderFilm[row][column].predError)
+					{
+						errorMapMaxVal = initialRenderFilm[row][column].predError;
+					}
+				}
+			}
+
+			int extentResolutionDiff = sampleExtent.x - resX;
+
+			int counterBlue = 0;
+			int counterGreen = 0;
+			int counterRed = 0;
+
+			for (int row = 0; row < resX; row++)
+			{
+				for (int column = 0; column < resY; column++)
+				{
+					// Initializing the color ramp
+					Float tmpErrorVal = (Float)initialRenderFilm[row][column].predError / errorMapMaxVal * scaleFactorErrorMap;
+					tmpErrorVal *= 3;
+					tmpErrorVal = std::min((Float)3.0, tmpErrorVal);
+					int tmpErrorValFloor = tmpErrorVal;
+
+					Float red = 0.0;
+					Float green = 0.0;
+					Float blue = 0.0;
+
+					Float floorDiff = (tmpErrorVal - (Float)tmpErrorValFloor);
+
+					if (tmpErrorValFloor == 0)
+					{
+						counterBlue++;
+						blue = 1.0 - floorDiff;
+						green = floorDiff;
+					}
+					else if (tmpErrorValFloor == 1)
+					{
+						blue = floorDiff;
+						counterGreen++;
+						green = 1.0 - floorDiff;
+					}
+					else if (tmpErrorValFloor == 2)
+					{
+						green = floorDiff;
+						counterRed++;
+						red = 1.0 - floorDiff;
+					}
+					else if (tmpErrorValFloor == 3)
+					{
+						counterRed++;
+						red = 1.0;
+					}
+
+					//printf("\n\nRGB: [ %f , %f , %f ]\n\n", red, green, blue);
+					//printf("\n***********************************************************************************************\n\n");
+
+					arrayToFill[3 * (column * sampleExtent.x + row) + 0 + 3 * extentResolutionDiff] = red;
+					arrayToFill[3 * (column * sampleExtent.x + row) + 1 + 3 * extentResolutionDiff] = green;
+					arrayToFill[3 * (column * sampleExtent.x + row) + 2 + 3 * extentResolutionDiff] = blue;
+				}
+			}
+		},
+		"ErrorEstimationMap_", fileName, sampleBounds, fullResolution, 0.0, 0.0, 1.0);
+
+		/////////////////////////////////////////////////////////////////////////////////////////
+		// Visualize coverage mask
+
+		writeVisualizationToImage([&](Float* arrayToFill)
+		{
+			int coverageMaskMaxVal = 0;
+			for (int row = 0; row < sampleExtent.x; row++)
+			{
+				for (int column = 0; column < sampleExtent.y; column++)
+				{
+					if (coverageMaskMaxVal < coverageMask[row][column].coverageCounter)
+					{
+						coverageMaskMaxVal = coverageMask[row][column].coverageCounter;
+					}
+				}
+			}
+
+			for (int row = 0; row < sampleExtent.x; row++)
+			{
+				for (int column = 0; column < sampleExtent.y; column++)
+				{
+					arrayToFill[3 * (column * sampleExtent.x + row) + 0] = 1.0 - (Float)coverageMask[row][column].coverageCounter / (Float)coverageMaskMaxVal;
+					arrayToFill[3 * (column * sampleExtent.x + row) + 1] = 1.0 - (Float)coverageMask[row][column].coverageCounter / (Float)coverageMaskMaxVal;
+					arrayToFill[3 * (column * sampleExtent.x + row) + 2] = 1.0 - (Float)coverageMask[row][column].coverageCounter / (Float)coverageMaskMaxVal;
+				}
+			}
+		},
+		"CoverageMask_", fileName, sampleBounds, fullResolution, 1.0, 1.0, 1.0);
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

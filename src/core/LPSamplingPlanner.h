@@ -78,6 +78,8 @@ namespace pbrt
 		// For test only!
 		void predictionErrorEstimateTest();
 
+		void outPutVisualizationImages(const std::string fileName, Bounds2i sampleBounds, Point2i fullResolution);
+
 	protected:
 		virtual void CreateSamplingPlan(int samplesPerPixel, Film * film) override;
 		
@@ -95,7 +97,7 @@ namespace pbrt
 		int32_t maxSamplesSend = 0;//DEBUG
 		double maxError = 0;
 		double minError = 0;
-		int32_t maxLevelOfAdaptation = 3; 
+		int32_t maxLevelOfAdaptation = 1; 
 		int32_t currentLevelOfAdaptation = 0;
 
 		LinearModel computeLinearModelAndPredictionError(const LinearModel previousLinModel, int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
