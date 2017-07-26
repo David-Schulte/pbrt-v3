@@ -150,7 +150,7 @@ namespace pbrt
 
 				initialRenderFilm[row][column].rgb[0] = rgb[0];
 				initialRenderFilm[row][column].rgb[1] = rgb[1];
-				initialRenderFilm[row][column].rgb[2] = rgb[0];
+				initialRenderFilm[row][column].rgb[2] = rgb[2];
 			}
 		}
 		delete[] rgb;
