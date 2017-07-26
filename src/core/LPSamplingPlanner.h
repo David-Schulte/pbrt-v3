@@ -99,6 +99,7 @@ namespace pbrt
 		double minError = 0;
 		int32_t maxLevelOfAdaptation = 1; 
 		int32_t currentLevelOfAdaptation = 0;
+		bool useSmallWindowsOnBorder = true;
 
 		LinearModel computeLinearModelAndPredictionError(const LinearModel previousLinModel, int adaptiveWindowSize, const std::vector<std::vector<rawPixelData>>& rawPixelData, Point2i centerPixel);
 		void updatePredictionErrorEstimate(LinearModel &linModel, const LinearModel previousLinModel, const std::vector<std::vector<rawPixelData>>& rawPixelData, Eigen::MatrixXd Xc, Eigen::MatrixXd Yc);

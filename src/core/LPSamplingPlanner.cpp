@@ -10,6 +10,13 @@ namespace pbrt
 {
 	void LPSamplingPlanner::UpdateSamplingPlan(Film *film, const int64_t adaptiveSamplesCount)
 	{
+		//prediction windows of size fixedWindowSize x fixedWindowSize might reach over the border. 
+		//This parameter specifies how the algorithm should behave in such cases near the border.
+		//if this parameter is false, no linear models will be computed in such cases.
+		//If this parameter is true the algorithm will use the predictions windows that do not reach over the border in such cases. 
+		useSmallWindowsOnBorder = true;
+		
+
 		if (firstIteration) //plannedSampleMap is initialized with initialRenderSamplesPerPixels in SamplingPlanner::CreateSampleMap -> we dont have to do anything here for the initial render pass
 			return;			//firstIteration is set to false in SamplingPlanner::StartNextIteration
 
@@ -58,8 +65,7 @@ namespace pbrt
 				if (coverageMask[centerPixelX][centerPixelY].value) //center pixel is already covered --> skip this center pixel
 					continue;
 				
-				//if a windows of size fixedWindowSize x fixedWindowSize reaches over border, we cannot compute all linear models.
-				// --> compute linear models only if the window does not reach over image border
+					//Compute linear models if their prediction window does not reach over the border
 					std::vector<LinearModel> linModels = computeAllLinearModels(centerPixelX, centerPixelY);
 					minErrorLinModel = (linModels.size() > 0) ? linModels[findMinErrorLinModelIdx(linModels)] : LinearModel();
 					kOpt = (linModels.size() > 0) ? minErrorLinModel.windowSize : grid.fixedWindowSize;
@@ -226,8 +232,8 @@ namespace pbrt
 		// Compute linear models.
 		for (int32_t adaptiveWindowSize = 3; adaptiveWindowSize < grid.fixedWindowSize + 1; adaptiveWindowSize += 2)
 		{
-			
-			if (windowReachesOverBorder(pbrt::Point2i(centerPixelX, centerPixelY), adaptiveWindowSize))
+			int32_t windowSize = useSmallWindowsOnBorder ? adaptiveWindowSize : grid.fixedWindowSize; //check if algorithm should compute linear models for pixels near the border (if not all linear models can be computed)
+			if (windowReachesOverBorder(pbrt::Point2i(centerPixelX, centerPixelY), windowSize)) //if windowSize = grid.fixedWindowSize this will be false for pixels near the border an no linear models will be computed
 			{
 				break;
 			}
