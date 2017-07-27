@@ -16,6 +16,9 @@ namespace pbrt {
 	// unique ptr on flat array of Pixel
 	typedef pbrt::Film::Pixel* Pixel_Buffer;
 
+	//vector of estimated variances
+	typedef std::vector < std::vector< Float > > estimated_variances;
+
 	public:
 		NLMeans(Film* film, int sampleBudget, int r, int f, double k);
 		~NLMeans();
@@ -56,6 +59,8 @@ namespace pbrt {
 		int m_xResolution = 0;
 		int m_yResolution = 0;
 		int m_active_buffer = 0;
+		bool m_calculating_var = 0;
+		estimated_variances m_est_var;
 
 		void intialize();
 
@@ -66,10 +71,16 @@ namespace pbrt {
 		// neighbourhood size is r * r + 1
 		Neighbourhood createNeighbourhoodOfPoint(pbrt::Point2i p, Pixel_Buffer buffer, int r);
 		
-		Patch createPatchInNeighbourhoodOfPoint(pbrt::Point2i p, Neighbourhood neighbourhood, int r, int f);
+		Patch NLMeans::createPatchOfPoint(pbrt::Point2i p, int f);
 	
 		// Pixel should be in RGB and divided by filter sum here, specifiy distance in which color channel with channel parameter
-		Float distanceBetweenTwoPixel(pbrt::Film::Pixel& p, pbrt::Film::Pixel& q, int channel);
+		Float distanceBetweenTwoPixel(pbrt::Film::Pixel& p, pbrt::Film::Pixel& q, int channel, int offset_p, int offset_q);
+
+		// Pixel should be in RGB and divided by filter sum here, specifiy distance in which color channel with channel parameter
+		Float distanceBetweenTwoVariances(Float var_p, Float var_q, Float est_var_p, Float est_var_q);
+		
+		//estimate variance
+		void estimateVariance(Pixel_Buffer A, Pixel_Buffer B);
 		
 		Float weight(pbrt::Point2i p, pbrt::Point2i q, NLMeans::Neighbourhood ngbh, int r, int f, double k, Pixel_Buffer buffer);
 
@@ -83,6 +94,9 @@ namespace pbrt {
 
 		// filter complete buffer A with weights from buffer B
 		void filter(Pixel_Buffer A, Pixel_Buffer B, Pixel_Buffer C);
+
+		//estimate error
+		void estimateError(Pixel_Buffer A, Pixel_Buffer B);
 	};
 
 	NLMeans *CreateNLMeans(Film* film, int samplesPerPixel, int r, int f, double k);

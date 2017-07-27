@@ -179,14 +179,16 @@ class FilmTile {
 				pixel.sampleCount++;
 				// mean and variance after https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm 
 				Float old_mean[3] = { pixel.mean[0], pixel.mean[1], pixel.mean[2] };
-				Float x_n[3] = { pixel.contribSum[0] * 1.f / pixel.filterWeightSum, pixel.contribSum[1] * 1.f / pixel.filterWeightSum, pixel.contribSum[2] * 1.f / pixel.filterWeightSum };
-				pixel.mean[0] = (x_n[0] - old_mean[0]) / pixel.sampleCount;
-				pixel.mean[1] = (x_n[1] - old_mean[1]) / pixel.sampleCount;
-				pixel.mean[2] = (x_n[2] - old_mean[2]) / pixel.sampleCount;
+			//	Float x_n[3] = { pixel.contribSum[0] * 1.f / pixel.filterWeightSum, pixel.contribSum[1] * 1.f / pixel.filterWeightSum, pixel.contribSum[2] * 1.f / pixel.filterWeightSum };
 
-				pixel.SumOfSqrdDiffsToMean[0] += (x_n[0] - old_mean[0]) * (x_n[0] - pixel.mean[0]);
-				pixel.SumOfSqrdDiffsToMean[1] += (x_n[1] - old_mean[1]) * (x_n[1] - pixel.mean[1]);
-				pixel.SumOfSqrdDiffsToMean[2] += (x_n[2] - old_mean[2]) * (x_n[2] - pixel.mean[2]);
+
+				pixel.mean[0] = (L[0] - old_mean[0]) / pixel.sampleCount;
+				pixel.mean[1] = (L[1] - old_mean[1]) / pixel.sampleCount;
+				pixel.mean[2] = (L[2] - old_mean[2]) / pixel.sampleCount;
+
+				pixel.SumOfSqrdDiffsToMean[0] += (L[0] - old_mean[0]) * (L[0] - pixel.mean[0]);
+				pixel.SumOfSqrdDiffsToMean[1] += (L[1] - old_mean[1]) * (L[1] - pixel.mean[1]);
+				pixel.SumOfSqrdDiffsToMean[2] += (L[2] - old_mean[2]) * (L[2] - pixel.mean[2]);
 
             }
         }
