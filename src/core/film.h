@@ -80,12 +80,28 @@ class Film {
     const Point2i fullResolution;
     const Float diagonal;
     std::unique_ptr<Filter> filter;
-    const std::string filename;
+    std::string filename;
     Bounds2i croppedPixelBounds;
 
-    // Film Private Data
+   
     struct Pixel {
 		Pixel() { xyz[0] = xyz[1] = xyz[2] = sampleCount = SumOfSqrdDiffsToMean[0] = SumOfSqrdDiffsToMean[1] = SumOfSqrdDiffsToMean[2] = mean[0] = mean[1] = mean[2] = filterWeightSum = 0; }
+		Pixel(const Pixel& other) {
+			this->xyz[0] = other.xyz[0]; this->xyz[1] = other.xyz[1]; this->xyz[2] = other.xyz[2];
+			this->sampleCount = other.sampleCount;
+			this->SumOfSqrdDiffsToMean[0] = other.SumOfSqrdDiffsToMean[0] ; this->SumOfSqrdDiffsToMean[1] = other.SumOfSqrdDiffsToMean[1]; this->SumOfSqrdDiffsToMean[2] = other.SumOfSqrdDiffsToMean[2];
+			this->filterWeightSum = other.filterWeightSum;
+			this->mean[0] = other.mean[0]; this->mean[1] = other.mean[1]; this->mean[2] = other.mean[2];
+		}
+		Pixel& operator=(Pixel& other)
+		{
+			this->xyz[0] = other.xyz[0]; this->xyz[1] = other.xyz[1]; this->xyz[2] = other.xyz[2];
+			this->sampleCount = other.sampleCount;
+			this->SumOfSqrdDiffsToMean[0] = other.SumOfSqrdDiffsToMean[0]; this->SumOfSqrdDiffsToMean[1] = other.SumOfSqrdDiffsToMean[1]; this->SumOfSqrdDiffsToMean[2] = other.SumOfSqrdDiffsToMean[2];
+			this->filterWeightSum = other.filterWeightSum;
+			this->mean[0] = other.mean[0]; this->mean[1] = other.mean[1]; this->mean[2] = other.mean[2];
+			return *this;
+		}
         Float xyz[3];
         Float filterWeightSum;
         AtomicFloat splatXYZ[3];
@@ -97,6 +113,7 @@ class Film {
  //       Float pad;
     };
 	std::unique_ptr<Pixel[]> pixels;
+	// Film Private Data
 	private:
     static PBRT_CONSTEXPR int filterTableWidth = 16;
     Float filterTable[filterTableWidth * filterTableWidth];
@@ -169,6 +186,7 @@ class FilmTile {
                 // Evaluate filter value at $(x,y)$ pixel
                 int offset = ify[y - p0.y] * filterTableSize + ifx[x - p0.x];
                 Float filterWeight = filterTable[offset];
+				Spectrum contribution = L * sampleWeight;
 
                 // Update pixel values with filtered sample contribution
                 FilmTilePixel &pixel = GetPixel(Point2i(x, y));
@@ -179,16 +197,15 @@ class FilmTile {
 				pixel.sampleCount++;
 				// mean and variance after https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Online_algorithm 
 				Float old_mean[3] = { pixel.mean[0], pixel.mean[1], pixel.mean[2] };
-			//	Float x_n[3] = { pixel.contribSum[0] * 1.f / pixel.filterWeightSum, pixel.contribSum[1] * 1.f / pixel.filterWeightSum, pixel.contribSum[2] * 1.f / pixel.filterWeightSum };
 
 
-				pixel.mean[0] = (L[0] - old_mean[0]) / pixel.sampleCount;
-				pixel.mean[1] = (L[1] - old_mean[1]) / pixel.sampleCount;
-				pixel.mean[2] = (L[2] - old_mean[2]) / pixel.sampleCount;
+				pixel.mean[0] = (contribution[0] - old_mean[0]) / pixel.sampleCount;
+				pixel.mean[1] = (contribution[1] - old_mean[1]) / pixel.sampleCount;
+				pixel.mean[2] = (contribution[2] - old_mean[2]) / pixel.sampleCount;
 
-				pixel.SumOfSqrdDiffsToMean[0] += (L[0] - old_mean[0]) * (L[0] - pixel.mean[0]);
-				pixel.SumOfSqrdDiffsToMean[1] += (L[1] - old_mean[1]) * (L[1] - pixel.mean[1]);
-				pixel.SumOfSqrdDiffsToMean[2] += (L[2] - old_mean[2]) * (L[2] - pixel.mean[2]);
+				pixel.SumOfSqrdDiffsToMean[0] += (contribution[0] - old_mean[0]) * (contribution[0] - pixel.mean[0]);
+				pixel.SumOfSqrdDiffsToMean[1] += (contribution[1] - old_mean[1]) * (contribution[1] - pixel.mean[1]);
+				pixel.SumOfSqrdDiffsToMean[2] += (contribution[2] - old_mean[2]) * (contribution[2] - pixel.mean[2]);
 
             }
         }

@@ -2,7 +2,7 @@
 #define PBRT_ADAPTIVE_EVALUATERS_NL_MEANS_H
 
 #include "A_Eval.h"
-
+#include "imageio.h"
 namespace pbrt {
 	
 	class NLMeans : public Adaptive_Evaluater
@@ -14,7 +14,7 @@ namespace pbrt {
 	typedef std::vector < pbrt::Point2i > Neighbourhood;
 		
 	// unique ptr on flat array of Pixel
-	typedef pbrt::Film::Pixel* Pixel_Buffer;
+	typedef pbrt::Film::Pixel* __restrict Pixel_Buffer;
 
 	//vector of estimated variances
 	typedef std::vector < std::vector< Float > > estimated_variances;
@@ -55,11 +55,17 @@ namespace pbrt {
 		std::vector< std::vector < unsigned int > > m_sampleMap;
 		// map which stores how often a pixel got sampled
 		std::vector< std::vector < unsigned int > > m_doneSampleMap;
+		// map which stores error of buffer A;
+		std::vector< std::vector < Float > > m_errorMapA;
+		// map which stores error of buffer B;
+		std::vector< std::vector < Float > > m_errorMapB;
 
 		int m_xResolution = 0;
 		int m_yResolution = 0;
 		int m_active_buffer = 0;
 		bool m_calculating_var = 0;
+		int m_max_iterations = 0;
+		int m_iteration = 0;
 		estimated_variances m_est_var;
 
 		void intialize();
@@ -69,7 +75,7 @@ namespace pbrt {
 		void bufferRGBtoXYZ(Pixel_Buffer buff);
 		
 		// neighbourhood size is r * r + 1
-		Neighbourhood createNeighbourhoodOfPoint(pbrt::Point2i p, Pixel_Buffer buffer, int r);
+		Neighbourhood createNeighbourhoodOfPoint(pbrt::Point2i p, int r);
 		
 		Patch NLMeans::createPatchOfPoint(pbrt::Point2i p, int f);
 	
@@ -82,21 +88,24 @@ namespace pbrt {
 		//estimate variance
 		void estimateVariance(Pixel_Buffer A, Pixel_Buffer B);
 		
-		Float weight(pbrt::Point2i p, pbrt::Point2i q, NLMeans::Neighbourhood ngbh, int r, int f, double k, Pixel_Buffer buffer);
+		Float weight(pbrt::Point2i p, pbrt::Point2i q, int r, int f, double k, Pixel_Buffer buffer);
 
 		Float finalPatchWeight(pbrt::Point2i p, pbrt::Point2i q, int r, int f, double k);
 		
 		// caalculates average distane between pixels in a patch
-		Float distanceBetweenTwoPatches(Patch P, Patch Q, int f, Pixel_Buffer buffer);
+		Float distanceBetweenTwoPatches(const Patch P, const Patch Q, int f, Pixel_Buffer buffer);
 
 		// filter a single Point
-		void filterPoint(pbrt::Point2i p, Float* u, Pixel_Buffer A, Pixel_Buffer B);
+		void filterPoint(pbrt::Point2i p, Float u[3], Pixel_Buffer A, Pixel_Buffer B);
 
 		// filter complete buffer A with weights from buffer B
 		void filter(Pixel_Buffer A, Pixel_Buffer B, Pixel_Buffer C);
 
 		//estimate error
-		void estimateError(Pixel_Buffer A, Pixel_Buffer B);
+		void NLMeans::estimateError(Pixel_Buffer A, Pixel_Buffer B, std::vector< std::vector < Float > >& m_errorMap);
+
+		// create sampleMap from error values
+		void errorToSampleMap();
 	};
 
 	NLMeans *CreateNLMeans(Film* film, int samplesPerPixel, int r, int f, double k);

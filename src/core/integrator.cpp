@@ -42,7 +42,7 @@
 #include "progressreporter.h"
 #include "camera.h"
 #include "stats.h"
-
+#include <chrono>
 
 namespace pbrt {
 
@@ -236,6 +236,7 @@ void SamplerIntegrator::Render(const Scene &scene) {
     const int tileSize = 16;
     Point2i nTiles((sampleExtent.x + tileSize - 1) / tileSize,
                    (sampleExtent.y + tileSize - 1) / tileSize);
+
     ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
     {
         ParallelFor2D([&](Point2i tile) {
@@ -439,8 +440,7 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 
 	do
 	{
-		ProgressReporter reporter(nTiles.x * nTiles.y, "Rendering");
-		{
+			std::chrono::high_resolution_clock::time_point begin = std::chrono::high_resolution_clock::now();
 			ParallelFor2D([&](Point2i tile) {
 				// Render section of image corresponding to _tile_
 
@@ -536,10 +536,10 @@ void AdaptiveSamplerIntegrator::Render(const Scene &scene) {
 
 				// Merge image tile into _Film_
 				camera->film->MergeFilmTile(std::move(filmTile));
-				reporter.Update();
 			}, nTiles);
-			reporter.Done();
-		}
+			std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+			auto duration = std::chrono::duration_cast<std::chrono::seconds> (end - begin).count();
+			std::cout << std::endl << "Rendering took : " << duration;
 		a_eval->updateSampleMap();
 	}
 	while ( a_eval->hasNextIteration() ) ;
